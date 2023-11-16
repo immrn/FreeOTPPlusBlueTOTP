@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   - FreeOTP
+   -
+   - Authors: Nathaniel McCallum <npmccallum@redhat.com>
+   -
+   - Copyright (C) 2013  Nathaniel McCallum, Red Hat
+   -
+   - Licensed under the Apache License, Version 2.0 (the "License");
+   - you may not use this file except in compliance with the License.
+   - You may obtain a copy of the License at
+   -
+   -     http://www.apache.org/licenses/LICENSE-2.0
+   -
+   - Unless required by applicable law or agreed to in writing, software
+   - distributed under the License is distributed on an "AS IS" BASIS,
+   - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   - See the License for the specific language governing permissions and
+   - limitations under the License.
+   -->
+<LinearLayout android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <TextView
+        android:id="@+id/about_version"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginTop="@dimen/space_3"
+        android:layout_marginStart="@dimen/space_3"
+        android:layout_marginEnd="@dimen/space_3"
+        android:text="@string/about_version" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_3"
+        android:layout_marginEnd="@dimen/space_3"
+        android:text="@string/about_copyright"/>
+
+    <TextView
+        android:id="@+id/about_license"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_3"
+        android:layout_marginEnd="@dimen/space_3"
+        android:layout_marginTop="16dp"
+        android:text="@string/about_license" />
+
+    <TextView
+        android:id="@+id/about_icons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_3"
+        android:layout_marginEnd="@dimen/space_3"
+        android:layout_marginTop="16dp"
+        android:text="@string/about_icons" />
+
+    <TextView
+        android:id="@+id/about_token_image"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_3"
+        android:layout_marginEnd="@dimen/space_3"
+        android:layout_marginTop="16dp"
+        android:text="@string/about_token_image" />
+</LinearLayout>

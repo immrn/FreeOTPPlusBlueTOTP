@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#16AFF9</color>
+    <color name="primary_dark">#128EC9</color>
+    <color name="secondary">#16AFF9</color>
+    <color name="token_background">@android:color/white</color>
+    <color name="overflow_menu">#303030</color>
+</resources>
+
