@@ -27,6 +27,9 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme">
+        <activity
+            android:name=".ui.OnboardingActivity"
+            android:exported="false" />
         <activity android:name=".ui.ScanTokenActivity" />
         <activity android:name=".ui.AboutActivity" />
         <activity
@@ -65,9 +68,10 @@
                     android:host="hotp"
                     android:scheme="otpauth" />
             </intent-filter>
-            <meta-data android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
 
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
     </application>
 

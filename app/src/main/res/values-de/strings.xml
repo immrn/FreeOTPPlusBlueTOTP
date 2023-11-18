@@ -64,4 +64,10 @@
     <string name="screenshot_mode">Screenshot-Modus</string>
     <string name="launch_with_screenshot_enabled">Starte mit aktiviertem Screenshot</string>
     <string name="token_details">Token-Details</string>
+
+    <string name="onb_title">Blue TOTP auf Windows installieren</string>
+    <string name="onb_step1">Um Blue TOTP zu nutzen, benötigen Sie einen bluetoothfähigen Windows PC.</string>
+    <string name="onb_step2">Öffnen Sie folgenden Link auf Ihrem Windows PC, um die zusätzliche Software zu installieren:</string>
+    <string name="onb_dont_show_again">Diese Anleitung nicht mehr zeigen</string>
+    <string name="onb_continue">Weiter</string>
 </resources>

@@ -76,4 +76,14 @@
     <string name="launch_with_screenshot_enabled">Launch with screenshot enabled</string>
     <string name="token_details">Token details</string>
     <string name="share_to_other_apps">Share to other apps</string>
+
+    <string name="onb_title">Install Blue TOTP on Windows</string>
+    <string name="onb_step1">To use Blue TOTP, you need a Windows PC that supports Bluetooth.</string>
+    <string name="onb_step2">Open following Link on your Windows PC, to install the additional software:</string>
+    <string name="onb_shortlink">ubisys.org/2fa</string>
+    <string name="onb_dont_show_again">Don\'t show this hint again</string>
+    <string name="onb_continue">Continue</string>
+
+    <string name="preference_file_key">com.example.freeotpplusbluetotp.preference_file</string>
+    <string name="show_onb_key">show_hint_key</string>
 </resources>
