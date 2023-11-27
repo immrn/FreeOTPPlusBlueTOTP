@@ -36,11 +36,18 @@
 
 package org.fedorahosted.freeotp.ui
 
+import android.Manifest
 import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.PackageManager.PERMISSION_DENIED
+import android.content.pm.PackageManager.PERMISSION_GRANTED
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
@@ -49,11 +56,14 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.SearchView
 import android.widget.Toast
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -62,7 +72,6 @@ import androidx.recyclerview.widget.RecyclerView.AdapterDataObserver
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import org.fedorahosted.freeotp.R
 import org.fedorahosted.freeotp.data.MigrationUtil
@@ -70,6 +79,7 @@ import org.fedorahosted.freeotp.data.OtpTokenDatabase
 import org.fedorahosted.freeotp.data.OtpTokenFactory
 import org.fedorahosted.freeotp.databinding.MainBinding
 import org.fedorahosted.freeotp.data.legacy.ImportExportUtil
+import org.fedorahosted.freeotp.util.AdvertiseBleService
 import org.fedorahosted.freeotp.util.Settings
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -84,7 +94,9 @@ class MainActivity : AppCompatActivity() {
     @Inject lateinit var tokenMigrationUtil: MigrationUtil
     @Inject lateinit var otpTokenDatabase: OtpTokenDatabase
     @Inject lateinit var tokenListAdapter: TokenListAdapter
+    private lateinit var bluetoothManager: BluetoothManager
 
+    private var ble_permissions_denied = false
     private val viewModel: MainViewModel by viewModels()
     private lateinit var binding: MainBinding
     private var searchQuery = ""
@@ -100,15 +112,57 @@ class MainActivity : AppCompatActivity() {
 
     private val dateFormatter : DateFormat = SimpleDateFormat("yyyyMMdd_HHmm")
 
+    private var requestBluetooth = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            Log.i("mrndebug", "granted access")
+            // Start our Bluetooth Server (Advertiser):
+            Log.i("mrndebug", "starting advertising service")
+            startService(Intent(this, AdvertiseBleService::class.java))
+        }else{
+            Log.i("mrndebug", "denied access")
+            ble_permissions_denied = true
+        }
+    }
+
+    private val requestMultiplePermissions =
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                permissions.entries.forEach {
+                    Log.d("mrndebug", "${it.key} = ${it.value}")
+                    if (!it.value) {
+                        ble_permissions_denied = true
+                    }
+                }
+                if (!ble_permissions_denied) {
+                    // Start our Bluetooth Server (Advertiser):
+                    Log.i("mrndebug", "starting advertising service 2")
+                    startService(Intent(this, AdvertiseBleService::class.java))
+                }
+            }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Show onboarding activity if user didn't check the checkbox "Don't show onboarding anymore" of the onboarding screen:
-        val sharedPref = getApplicationContext().getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-        val defaultValue = resources.getBoolean(R.bool.show_onb_default_key)
-        val show_onboarding_activity = sharedPref.getBoolean(getString(R.string.show_onb_key), defaultValue)
-        if (show_onboarding_activity) {
-            startActivity(Intent(this, OnboardingActivity::class.java))
+        // ---- BLuetooth Low Energy related ----- //
+        Log.i("mrndebug", "checking BLE support and asking for permissions")
+        bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothAdapter = bluetoothManager.adapter
+        // We can't continue without proper Bluetooth support:
+        if (!checkBluetoothSupport(bluetoothAdapter)) {
+            Log.i("mrndebug", "bluetooth not supported")
+            finish()
+        }
+        // Check BT permissions:
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Log.i("mrndebug", "asking for permission BLUETOOTH_CONNECT and BLUETOOTH_ADVERTISE")
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PERMISSION_DENIED
+                    || ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE) == PERMISSION_DENIED) {
+                Log.i("mrndebug", "BLUETOOTH_CONNECT or BLUETOOTH_ADVERTISE is currently denied, asking for permission...")
+                requestMultiplePermissions.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE))
+            }
+        } else{
+            Log.i("mrndebug", "asking for basic Bluetooth permission")
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            requestBluetooth.launch(enableBtIntent)
         }
 
         onNewIntent(intent)
@@ -475,5 +529,18 @@ class MainActivity : AppCompatActivity() {
         const val WRITE_KEY_URI_REQUEST_CODE = 45
         const val SCREENSHOT_MODE_EXTRA = "screenshot_mode"
         const val SHARE_FROM_PACKAGE_NAME_INTENT_EXTRA = "shareFromPackageName"
+    }
+
+    private fun checkBluetoothSupport(bluetoothAdapter: BluetoothAdapter?): Boolean {
+        if (bluetoothAdapter == null) {
+            Log.w(TAG, "Bluetooth is not supported")
+            return false
+        }
+
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+            Log.w(TAG, "Bluetooth LE is not supported")
+            return false
+        }
+        return true
     }
 }
