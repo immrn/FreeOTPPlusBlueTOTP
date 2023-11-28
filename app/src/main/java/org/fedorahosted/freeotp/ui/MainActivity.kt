@@ -115,7 +115,6 @@ class MainActivity : AppCompatActivity() {
     private var requestBluetooth = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             Log.i("mrndebug", "granted access")
-            // Start our Bluetooth Server (Advertiser):
             Log.i("mrndebug", "starting advertising service")
             startService(Intent(this, AdvertiseBleService::class.java))
         }else{
@@ -135,7 +134,7 @@ class MainActivity : AppCompatActivity() {
                 if (!ble_permissions_denied) {
                     // Start our Bluetooth Server (Advertiser):
                     Log.i("mrndebug", "starting advertising service 2")
-                    startService(Intent(this, AdvertiseBleService::class.java))
+                    activateBluetooth()
                 }
             }
 
@@ -153,16 +152,18 @@ class MainActivity : AppCompatActivity() {
         }
         // Check BT permissions:
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Log.i("mrndebug", "asking for permission BLUETOOTH_CONNECT and BLUETOOTH_ADVERTISE")
+            Log.i("mrndebug", "checking for permission BLUETOOTH_CONNECT and BLUETOOTH_ADVERTISE")
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PERMISSION_DENIED
                     || ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE) == PERMISSION_DENIED) {
                 Log.i("mrndebug", "BLUETOOTH_CONNECT or BLUETOOTH_ADVERTISE is currently denied, asking for permission...")
                 requestMultiplePermissions.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE))
+            } else {
+                // This will also start our android service which handles ble communication
+                activateBluetooth()
             }
-        } else{
-            Log.i("mrndebug", "asking for basic Bluetooth permission")
-            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            requestBluetooth.launch(enableBtIntent)
+        } else {
+            // This will also start our android service which handles ble communication
+            activateBluetooth()
         }
 
         onNewIntent(intent)
@@ -235,6 +236,12 @@ class MainActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.FLAG_SECURE
             )
         }
+    }
+
+    private fun activateBluetooth() {
+        Log.i("mrndebug", "asking for basic Bluetooth permission")
+        val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        requestBluetooth.launch(enableBtIntent)
     }
 
     override fun onDestroy() {

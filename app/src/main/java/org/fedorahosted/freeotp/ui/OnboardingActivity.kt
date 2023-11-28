@@ -13,7 +13,7 @@ class OnboardingActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Show onboarding activity if user didn't check the checkbox "Don't show onboarding anymore" of the onboarding screen:
+        // Show onboarding activity if user didn't check the checkbox "Don't show onboarding anymore" at the onboarding screen:
         val sharedPref = getApplicationContext().getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         val defaultValue = resources.getBoolean(R.bool.show_onb_default_key)
         val show_onboarding_activity = sharedPref.getBoolean(getString(R.string.show_onb_key), defaultValue)
