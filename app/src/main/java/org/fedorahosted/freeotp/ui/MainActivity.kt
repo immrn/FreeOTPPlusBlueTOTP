@@ -47,6 +47,7 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.PERMISSION_GRANTED
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -600,14 +601,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setBtButtonDrawable(enabled: Boolean) {
+
         if (enabled) {
             binding.bleOnOff.setImageResource(R.drawable.bt_icon_enabled)
             binding.bleOnOff.setColorFilter(Color.parseColor("#FFFFFF"))
             binding.bleOnOff.setBackgroundColor(Color.parseColor("#00000000"))
         } else {
             binding.bleOnOff.setImageResource(R.drawable.bt_icon_disabled)
-            binding.bleOnOff.setColorFilter(Color.parseColor("#2b2b2b"))
+            if (isDarkmode()) {
+                binding.bleOnOff.setColorFilter(Color.parseColor("#A0A0A0"))
+            } else {
+                binding.bleOnOff.setColorFilter(Color.parseColor("#303030"))
+            }
             binding.bleOnOff.setBackgroundColor(Color.parseColor("#00000000"))
         }
+    }
+
+    private fun isDarkmode(): Boolean {
+        return this.resources.configuration.uiMode and
+                Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
     }
 }
