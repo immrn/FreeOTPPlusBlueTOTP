@@ -1,6 +1,12 @@
 package org.fedorahosted.freeotp.util
 
+import android.R
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.app.Service
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
@@ -17,9 +23,12 @@ import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import org.fedorahosted.freeotp.ui.MainActivity
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -29,6 +38,7 @@ import java.util.UUID
 
 class AdvertiseBleService : Service() {
 
+    private val CHANNEL_ID = "AdvertiseBleServiceChannel"
     private lateinit var bluetoothManager: BluetoothManager
     private lateinit var bluetoothLeAdvertiser: BluetoothLeAdvertiser
 
@@ -245,7 +255,7 @@ class AdvertiseBleService : Service() {
     }
 
     @SuppressLint("MissingPermission")
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    private fun initBleAdvertising() {
         Log.i("mrndebug", "starting BLE Service")
 
         bluetoothManager =  getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -256,19 +266,19 @@ class AdvertiseBleService : Service() {
         Log.i("mrndebug", "Bluetooth adapter name: ${bluetoothManager.adapter.name}")
 
         val rxTxService = BluetoothGattService(
-            serviceUuid,
-            BluetoothGattService.SERVICE_TYPE_PRIMARY)
+                serviceUuid,
+                BluetoothGattService.SERVICE_TYPE_PRIMARY)
         val rxCharacteristic = BluetoothGattCharacteristic(
-            rxCharUuid,
-            BluetoothGattCharacteristic.PROPERTY_WRITE,
-            BluetoothGattCharacteristic.PERMISSION_WRITE)
+                rxCharUuid,
+                BluetoothGattCharacteristic.PROPERTY_WRITE,
+                BluetoothGattCharacteristic.PERMISSION_WRITE)
         txCharacteristic = BluetoothGattCharacteristic(
-            txCharUuid,
-            BluetoothGattCharacteristic.PROPERTY_NOTIFY,
-            BluetoothGattCharacteristic.PERMISSION_READ)
+                txCharUuid,
+                BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+                BluetoothGattCharacteristic.PERMISSION_READ)
         val txDescriptor = BluetoothGattDescriptor(
-            cccDescriptorUuid,
-            BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
+                cccDescriptorUuid,
+                BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
         )
 
         txCharacteristic.addDescriptor(txDescriptor)
@@ -276,10 +286,41 @@ class AdvertiseBleService : Service() {
         rxTxService.addCharacteristic(txCharacteristic)
 
         bluetoothGattServer?.addService(rxTxService)
-            ?: Log.w("mrndebug", "Unable to create GATT server")
+                ?: Log.w("mrndebug", "Unable to create GATT server")
         bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
+    }
 
-        return START_STICKY
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                    CHANNEL_ID,
+                    "Foreground Service Channel",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(serviceChannel)
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val input = intent!!.getStringExtra("inputExtra")
+        createNotificationChannel()
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(this,
+                0, notificationIntent, FLAG_IMMUTABLE)
+
+        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Foreground Service")
+                .setContentText(input)
+                .setSmallIcon(R.drawable.arrow_up_float)
+                .setContentIntent(pendingIntent)
+                .build()
+
+        startForeground(1, notification)
+
+        initBleAdvertising()
+//        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent): IBinder? {
@@ -292,6 +333,5 @@ class AdvertiseBleService : Service() {
         bluetoothLeAdvertiser.stopAdvertising(advertiseCallback) // may be redundant to gattserver.close()
         bluetoothGattServer?.close()
         Log.i("mrndebug", "destroyed ble service")
-//        this.stopSelf()
     }
 }

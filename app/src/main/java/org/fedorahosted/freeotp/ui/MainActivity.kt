@@ -62,6 +62,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.app.ActivityCompat
+import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -75,8 +76,8 @@ import org.fedorahosted.freeotp.R
 import org.fedorahosted.freeotp.data.MigrationUtil
 import org.fedorahosted.freeotp.data.OtpTokenDatabase
 import org.fedorahosted.freeotp.data.OtpTokenFactory
-import org.fedorahosted.freeotp.databinding.MainBinding
 import org.fedorahosted.freeotp.data.legacy.ImportExportUtil
+import org.fedorahosted.freeotp.databinding.MainBinding
 import org.fedorahosted.freeotp.util.AdvertiseBleService
 import org.fedorahosted.freeotp.util.Settings
 import java.text.DateFormat
@@ -121,11 +122,23 @@ class MainActivity : AppCompatActivity() {
         if (result.resultCode == RESULT_OK) {
             Log.i("mrndebug", "granted access")
             Log.i("mrndebug", "starting advertising service")
-            startService(Intent(this, AdvertiseBleService::class.java))
+            startService()
+//          startService(Intent(this, AdvertiseBleService::class.java))
         }else{
             Log.i("mrndebug", "denied access")
             ble_permissions_denied = true
         }
+    }
+
+    fun startService() {
+        val serviceIntent = Intent(this, AdvertiseBleService::class.java)
+        serviceIntent.putExtra("inputExtra", "Foreground Service Example in Android")
+        ContextCompat.startForegroundService(this, serviceIntent)
+    }
+
+    fun stopService() {
+        val serviceIntent = Intent(this, AdvertiseBleService::class.java)
+        stopService(serviceIntent)
     }
 
     private fun allBlePermissionsGranted(): Boolean {
