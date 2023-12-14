@@ -38,6 +38,7 @@ package org.fedorahosted.freeotp.ui
 
 import android.Manifest
 import android.app.Activity
+import android.app.ActivityManager
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.ActivityNotFoundException
@@ -46,6 +47,7 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.PERMISSION_GRANTED
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -62,7 +64,6 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.app.ActivityCompat
-import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -82,9 +83,10 @@ import org.fedorahosted.freeotp.util.AdvertiseBleService
 import org.fedorahosted.freeotp.util.Settings
 import java.text.DateFormat
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
 import javax.inject.Inject
 import kotlin.math.max
+
 
 private val REQUEST_CODE_BLE_PERMISSIONS = 11
 private var REQUIRED_BLE_PERMISSIONS =  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -120,25 +122,39 @@ class MainActivity : AppCompatActivity() {
 
     private var requestBluetooth = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
-            Log.i("mrndebug", "granted access")
-            Log.i("mrndebug", "starting advertising service")
+            Log.i("mrnMainActivity", "granted access")
+            Log.i("mrnMainActivity", "starting advertising service")
             startService()
 //          startService(Intent(this, AdvertiseBleService::class.java))
         }else{
-            Log.i("mrndebug", "denied access")
+            Log.i("mrnMainActivity", "denied access")
             ble_permissions_denied = true
         }
     }
 
     fun startService() {
+        Log.i("mrnMainActivity", "starting AdvertiseBleService")
         val serviceIntent = Intent(this, AdvertiseBleService::class.java)
         serviceIntent.putExtra("inputExtra", "Foreground Service Example in Android")
         ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     fun stopService() {
+        Log.i("mrnMainActivity", "stopping AdvertiseBleService")
         val serviceIntent = Intent(this, AdvertiseBleService::class.java)
         stopService(serviceIntent)
+    }
+
+    fun isServiceRunningInForeground(): Boolean {
+        val manager = this.getSystemService(ACTIVITY_SERVICE) as ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (AdvertiseBleService::class.java.name == service.service.className) {
+                if (service.foreground) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     private fun allBlePermissionsGranted(): Boolean {
@@ -166,12 +182,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         // ---- BLuetooth Low Energy related ----- //
-        Log.i("mrndebug", "checking BLE support and asking for permissions")
+        Log.i("mrnMainActivity", "checking BLE support and asking for permissions")
         bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val bluetoothAdapter = bluetoothManager.adapter
         // We can't continue without proper Bluetooth support:
         if (!checkBluetoothSupport(bluetoothAdapter)) {
-            Log.i("mrndebug", "bluetooth not supported")
+            Log.i("mrnMainActivity", "bluetooth not supported")
             finish()
         }
 
@@ -242,10 +258,24 @@ class MainActivity : AppCompatActivity() {
 
         binding.addTokenFab.setOnClickListener {
             if (allBlePermissionsGranted()) {
-//                Log.i("mrndebug", "${AdvertiseBleService.isConnected}")
+//                Log.i("mrnMainActivity", "${AdvertiseBleService.isConnected}")
 //                startActivity(Intent(this, ScanTokenActivity::class.java))
             } else {
                 // TODO mrn user erklären was zu tun ist
+            }
+        }
+
+        setBtButtonDrawable(enabled = true)
+        binding.bleOnOff.setOnClickListener {
+            val isOn = isServiceRunningInForeground()
+            if (isOn) {
+                stopService()
+                Toast.makeText(this, R.string.stopped_ble_service, Toast.LENGTH_SHORT).show()
+                setBtButtonDrawable(enabled = false)
+            } else {
+                startService()
+                Toast.makeText(this, R.string.started_ble_service, Toast.LENGTH_SHORT).show()
+                setBtButtonDrawable(enabled = true)
             }
         }
 
@@ -261,7 +291,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun activateBluetooth() {
-        Log.i("mrndebug", "asking for basic Bluetooth permission")
+        Log.i("mrnMainActivity", "asking for basic Bluetooth permission")
         val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
         requestBluetooth.launch(enableBtIntent)
     }
@@ -356,11 +386,6 @@ class MainActivity : AppCompatActivity() {
 
             R.id.action_about -> {
                 startActivity(Intent(this, AboutActivity::class.java))
-                return true
-            }
-
-            R.id.quit_and_lock -> {
-                finish()
                 return true
             }
         }
@@ -572,5 +597,17 @@ class MainActivity : AppCompatActivity() {
             return false
         }
         return true
+    }
+
+    private fun setBtButtonDrawable(enabled: Boolean) {
+        if (enabled) {
+            binding.bleOnOff.setImageResource(R.drawable.bt_icon_enabled)
+            binding.bleOnOff.setColorFilter(Color.parseColor("#FFFFFF"))
+            binding.bleOnOff.setBackgroundColor(Color.parseColor("#00000000"))
+        } else {
+            binding.bleOnOff.setImageResource(R.drawable.bt_icon_disabled)
+            binding.bleOnOff.setColorFilter(Color.parseColor("#2b2b2b"))
+            binding.bleOnOff.setBackgroundColor(Color.parseColor("#00000000"))
+        }
     }
 }

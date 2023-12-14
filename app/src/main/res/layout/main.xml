@@ -28,40 +28,58 @@
 	<com.google.android.material.appbar.AppBarLayout
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content">
+
 		<com.google.android.material.appbar.MaterialToolbar
 			android:id="@+id/toolbar"
 			android:layout_width="match_parent"
 			android:layout_height="?attr/actionBarSize">
+
 			<androidx.appcompat.widget.SearchView
 				android:id="@+id/search_view"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:layout_gravity="end"
 				android:layout_marginEnd="@dimen/space_2"
-				android:iconifiedByDefault="true"/>
+				android:iconifiedByDefault="true">
+			</androidx.appcompat.widget.SearchView>
+
+			<ImageButton
+				android:id="@+id/bleOnOff"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="end"
+				android:adjustViewBounds="true"
+				android:padding="7dp"
+				android:scaleType="fitCenter"
+				android:src="@drawable/bt_icon_enabled" />
 		</com.google.android.material.appbar.MaterialToolbar>
+
 	</com.google.android.material.appbar.AppBarLayout>
+
 	<androidx.core.widget.NestedScrollView
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
 		app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
 		<TextView
 			android:id="@+id/empty_view"
 			android:layout_width="match_parent"
 			android:layout_height="match_parent"
-			android:padding="8dp"
 			android:gravity="center"
-			android:visibility="gone"
-			android:text="@string/no_keys" />
+			android:padding="8dp"
+			android:text="@string/no_keys"
+			android:visibility="gone" />
 	</androidx.core.widget.NestedScrollView>
+
 	<androidx.recyclerview.widget.RecyclerView
 		android:id="@+id/token_list"
-		android:visibility="gone"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
 		android:clipToPadding="false"
 		android:paddingBottom="96dp"
-		app:layout_behavior="@string/appbar_scrolling_view_behavior"/>
+		android:visibility="gone"
+		app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
 	<com.google.android.material.floatingactionbutton.FloatingActionButton
 		android:id="@+id/add_token_fab"
 		android:layout_width="wrap_content"
@@ -69,5 +87,5 @@
 		android:layout_gravity="bottom|end"
 		android:layout_margin="24dp"
 		android:contentDescription="@string/add_token"
-		app:srcCompat="@drawable/camera"/>
+		app:srcCompat="@drawable/camera" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

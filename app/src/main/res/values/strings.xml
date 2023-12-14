@@ -88,4 +88,6 @@
     <string name="show_onb_key">show_hint_key</string>
     <string name="cant_create_new_profile_text">Can\'t create new profile.</string>
     <string name="ble_permissions_denied_text">You\'ve denied necessary Bluetooth permissions.</string>
+    <string name="stopped_ble_service">Disabled Bluetooth radio (saving power)</string>
+    <string name="started_ble_service">Enabled Bluetooth radio</string>
 </resources>

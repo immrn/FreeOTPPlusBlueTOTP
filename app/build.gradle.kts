@@ -23,10 +23,10 @@ android {
         getByName("debug") {
             applicationIdSuffix = ".debug"
             isDebuggable = true
-            resValue("string", "app_name", "FreeOTP+ Debug")
+            resValue("string", "app_name", "Blue TOTP*")
         }
         getByName("release") {
-            resValue("string", "app_name", "FreeOTP+")
+            resValue("string", "app_name", "Blue TOTP")
         }
     }
 
