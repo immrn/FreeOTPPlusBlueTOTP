@@ -70,4 +70,6 @@
     <string name="onb_step2">Öffnen Sie folgenden Link auf Ihrem Windows PC, um die zusätzliche Software zu installieren:</string>
     <string name="onb_dont_show_again">Diese Anleitung nicht mehr zeigen</string>
     <string name="onb_continue">Weiter</string>
+    <string name="cant_create_new_profile_text">Neues Profil kann nicht angelegt werden.</string>
+    <string name="ble_permissions_denied_text">Sie haben die notwendigen Bluetooth-Berechtigungen abgelehnt.</string>
 </resources>

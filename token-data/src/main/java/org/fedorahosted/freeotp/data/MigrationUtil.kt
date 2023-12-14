@@ -47,7 +47,9 @@ class MigrationUtil @Inject constructor(
                 secret = legacyToken.secret,
                 digits = legacyToken.digits,
                 period = legacyToken.period,
-                encryptionType = EncryptionType.PLAIN_TEXT
+                encryptionType = EncryptionType.PLAIN_TEXT,
+                domain = null,
+                username = null
             )
         }
     };

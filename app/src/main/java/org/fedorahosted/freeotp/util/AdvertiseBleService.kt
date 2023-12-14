@@ -20,8 +20,12 @@ import android.content.Intent
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
 import java.util.Arrays
 import java.util.UUID
+
 
 class AdvertiseBleService : Service() {
 
@@ -29,6 +33,8 @@ class AdvertiseBleService : Service() {
     private lateinit var bluetoothLeAdvertiser: BluetoothLeAdvertiser
 
     private var bluetoothGattServer: BluetoothGattServer? = null
+    private lateinit var txCharacteristic: BluetoothGattCharacteristic
+    private var bleDevice: BluetoothDevice? = null
     private val serviceUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f852")
     private val txCharUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f853")
     // This descriptor uuid is given by the BLE spec. This tx characteristic may notify the central device, therefore we need this descriptor:
@@ -51,9 +57,13 @@ class AdvertiseBleService : Service() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.i("mrndebug", "BluetoothDevice CONNECTED: $device")
+                if (bleDevice == null) {
+                    bleDevice = device
+                }
                 bluetoothLeAdvertiser.stopAdvertising(advertiseCallback)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i("mrndebug", "BluetoothDevice DISCONNECTED: $device")
+                // TODO mrn we should check if bleDevice == devicebleDevice = null
                 bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
             }
         }
@@ -84,6 +94,7 @@ class AdvertiseBleService : Service() {
             val strValue = value?.toString(Charsets.UTF_8) ?: ""
             Log.i("mrndebug", "received value = $strValue")
             if (characteristic != null && characteristic.uuid == rxCharUuid) {
+                handleIncomingMessage(strValue)
                 if (responseNeeded) {
                     Log.i("mrndebug", "responded with GATT_SUCCESS and $strValue")
                     bluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, strValue.toByteArray(Charsets.UTF_8))
@@ -141,8 +152,95 @@ class AdvertiseBleService : Service() {
             Log.i("mrndebug", "LE Advertise Started.")
         }
 
+        @SuppressLint("MissingPermission")
         override fun onStartFailure(errorCode: Int) {
-            Log.w("mrndebug", "LE Advertise Failed: $errorCode")
+            var errorMsg: String = "unknown error"
+            when (errorCode) {
+                1 -> {
+                    errorMsg = "Failed to start advertising as the advertise data to be broadcasted is larger than 31 bytes."
+                    Log.i("mrndebug", "Bluetooth adapter name before: ${bluetoothManager.adapter.name}")
+                    bluetoothManager.adapter.name = bluetoothManager.adapter.name.replace(" ", "").take(8)
+                    Log.i("mrndebug", "Bluetooth adapter name: ${bluetoothManager.adapter.name}")
+                    // TODO mrn maybe restart service here, restarting advertising ends in a recursive IDE error
+                }
+                2 -> errorMsg = "Failed to start advertising because no advertising instance is available."
+                3 -> errorMsg = "Failed to start advertising as the advertising is already started"
+                4 -> errorMsg = "Operation failed due to an internal error."
+                5 -> errorMsg = "This feature is not supported on this platform."
+            }
+            Log.w("mrndebug", "LE Advertise Failed (name: ${bluetoothManager.adapter.name}): $errorMsg")
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun sendBle(message: String) {
+        txCharacteristic.let{
+            it.value = message.toByteArray(Charsets.UTF_8)
+            Log.i("mrndebug", "sending notify: $message")
+            bluetoothGattServer?.notifyCharacteristicChanged(bleDevice, it, true)
+        }
+    }
+
+    private fun getTotp(domain: String, username: String): String {
+        // from TokenPersistence.kt:
+//        val gson: Gson = Gson()
+//        val savedTokens = gson.fromJson(jsonString, SavedTokens::class.java)
+//        or (token in savedTokens.tokens) {
+//            save(token)
+//        }
+//        val prefs: SharedPreferences = this.applicationContext.getSharedPreferences("tokens", Context.MODE_PRIVATE)
+//        val str = prefs.getString(id, null)
+//        Token(str, true)
+//
+//        var mCodes: TokenCode? = null
+//        val code = mCodes?.currentCode?: run {
+//            mCode.text = mPlaceholder
+//            mProgressInner.visibility = View.GONE
+//            mProgressOuter.visibility = View.GONE
+//            animate(mImage, R.anim.token_image_fadein, true)
+//            return
+//        }
+        return 420609.toString()
+    }
+
+    private fun handleIncomingMessage(message: String) {
+        Log.i("mrndebug", "handling message: $message\nType of message: " + message::class.simpleName)
+        val msg: Map<String, *>
+        try {
+            msg = JSONObject(message).toMap()
+            Log.i("mrndebug", "parsed: $msg")
+            when (msg["key"]) {
+                "request_totp" -> {
+                    val totp = getTotp(msg["domain"].toString(), msg["username"].toString())
+                    sendBle(
+                        mapOf(
+                            "key" to "totp",
+                            "totp" to totp
+                        ).toString()
+                                .replace("=", "\": \"")
+                                .replace("{", "{\"")
+                                .replace(", ", "\", \"")
+                                .replace("}", "\"}")
+                    )
+                }
+            }
+        } catch (e: JSONException) {
+            Log.e("mrndebug", e.stackTraceToString())
+        }
+
+    }
+
+    private fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith {
+        when (val value = this[it])
+        {
+            is JSONArray ->
+            {
+                val map = (0 until value.length()).associate { Pair(it.toString(), value[it]) }
+                JSONObject(map).toMap().values.toList()
+            }
+            is JSONObject -> value.toMap()
+            JSONObject.NULL -> null
+            else            -> value
         }
     }
 
@@ -153,7 +251,9 @@ class AdvertiseBleService : Service() {
         bluetoothManager =  getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothLeAdvertiser = bluetoothManager.adapter.bluetoothLeAdvertiser
         bluetoothGattServer = bluetoothManager.openGattServer(this, gattServerCallback)
-        bluetoothManager.adapter.setName(bluetoothManager.adapter.name.take(8))
+        Log.i("mrndebug", "Bluetooth adapter name before: ${bluetoothManager.adapter.name}")
+        bluetoothManager.adapter.name = bluetoothManager.adapter.name.replace(" ", "").take(8)
+        Log.i("mrndebug", "Bluetooth adapter name: ${bluetoothManager.adapter.name}")
 
         val rxTxService = BluetoothGattService(
             serviceUuid,
@@ -162,13 +262,13 @@ class AdvertiseBleService : Service() {
             rxCharUuid,
             BluetoothGattCharacteristic.PROPERTY_WRITE,
             BluetoothGattCharacteristic.PERMISSION_WRITE)
-        val txCharacteristic = BluetoothGattCharacteristic(
-                txCharUuid,
-                BluetoothGattCharacteristic.PROPERTY_NOTIFY,
-                BluetoothGattCharacteristic.PERMISSION_READ)
+        txCharacteristic = BluetoothGattCharacteristic(
+            txCharUuid,
+            BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+            BluetoothGattCharacteristic.PERMISSION_READ)
         val txDescriptor = BluetoothGattDescriptor(
-                cccDescriptorUuid,
-                BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
+            cccDescriptorUuid,
+            BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
         )
 
         txCharacteristic.addDescriptor(txDescriptor)
@@ -176,7 +276,7 @@ class AdvertiseBleService : Service() {
         rxTxService.addCharacteristic(txCharacteristic)
 
         bluetoothGattServer?.addService(rxTxService)
-                ?: Log.w("mrndebug", "Unable to create GATT server")
+            ?: Log.w("mrndebug", "Unable to create GATT server")
         bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
 
         return START_STICKY
@@ -186,9 +286,12 @@ class AdvertiseBleService : Service() {
         return null
     }
 
+    @SuppressLint("MissingPermission")
     override fun onDestroy() {
         super.onDestroy()
+        bluetoothLeAdvertiser.stopAdvertising(advertiseCallback) // may be redundant to gattserver.close()
+        bluetoothGattServer?.close()
         Log.i("mrndebug", "destroyed ble service")
-        this.stopSelf()
+//        this.stopSelf()
     }
 }

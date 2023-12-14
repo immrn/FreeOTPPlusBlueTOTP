@@ -82,7 +82,9 @@ object OtpTokenFactory {
             digits = digits,
             counter = counter,
             period = period,
-            encryptionType = EncryptionType.PLAIN_TEXT
+            encryptionType = EncryptionType.PLAIN_TEXT,
+            domain = null,
+            username = null
         )
     }
 

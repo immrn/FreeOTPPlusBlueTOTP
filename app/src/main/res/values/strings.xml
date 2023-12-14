@@ -86,4 +86,6 @@
 
     <string name="preference_file_key">com.example.freeotpplusbluetotp.preference_file</string>
     <string name="show_onb_key">show_hint_key</string>
+    <string name="cant_create_new_profile_text">Can\'t create new profile.</string>
+    <string name="ble_permissions_denied_text">You\'ve denied necessary Bluetooth permissions.</string>
 </resources>

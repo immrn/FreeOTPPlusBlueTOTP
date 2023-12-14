@@ -45,7 +45,6 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.pm.PackageManager.PERMISSION_DENIED
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.os.Build
 import android.os.Bundle
@@ -56,7 +55,6 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.SearchView
 import android.widget.Toast
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -86,6 +84,13 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 import kotlin.math.max
+
+private val REQUEST_CODE_BLE_PERMISSIONS = 11
+private var REQUIRED_BLE_PERMISSIONS =  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE)
+    } else {
+        arrayOf()
+    }
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -123,20 +128,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                permissions.entries.forEach {
-                    Log.d("mrndebug", "${it.key} = ${it.value}")
-                    if (!it.value) {
-                        ble_permissions_denied = true
-                    }
-                }
-                if (!ble_permissions_denied) {
-                    // Start our Bluetooth Server (Advertiser):
-                    Log.i("mrndebug", "starting advertising service 2")
-                    activateBluetooth()
-                }
+    private fun allBlePermissionsGranted(): Boolean {
+        for (permission in REQUIRED_BLE_PERMISSIONS) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PERMISSION_GRANTED) {
+                return false
             }
+        }
+        return true
+    }
+
+    override fun onRequestPermissionsResult(
+            requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_BLE_PERMISSIONS) {
+            if (allBlePermissionsGranted()) {
+                activateBluetooth()
+            } else {
+                Toast.makeText(this, R.string.ble_permissions_denied_text, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -150,20 +161,13 @@ class MainActivity : AppCompatActivity() {
             Log.i("mrndebug", "bluetooth not supported")
             finish()
         }
-        // Check BT permissions:
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Log.i("mrndebug", "checking for permission BLUETOOTH_CONNECT and BLUETOOTH_ADVERTISE")
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PERMISSION_DENIED
-                    || ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE) == PERMISSION_DENIED) {
-                Log.i("mrndebug", "BLUETOOTH_CONNECT or BLUETOOTH_ADVERTISE is currently denied, asking for permission...")
-                requestMultiplePermissions.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE))
-            } else {
-                // This will also start our android service which handles ble communication
-                activateBluetooth()
-            }
-        } else {
-            // This will also start our android service which handles ble communication
+
+        // Request Bluetooth permissions:
+        if (allBlePermissionsGranted()) {
             activateBluetooth()
+        } else {
+            ActivityCompat.requestPermissions(
+                    this, REQUIRED_BLE_PERMISSIONS, REQUEST_CODE_BLE_PERMISSIONS)
         }
 
         onNewIntent(intent)
@@ -224,7 +228,12 @@ class MainActivity : AppCompatActivity() {
         })
 
         binding.addTokenFab.setOnClickListener {
-            startActivity(Intent(this, ScanTokenActivity::class.java))
+            if (allBlePermissionsGranted()) {
+//                Log.i("mrndebug", "${AdvertiseBleService.isConnected}")
+//                startActivity(Intent(this, ScanTokenActivity::class.java))
+            } else {
+                // TODO mrn user erklären was zu tun ist
+            }
         }
 
         // Don't permit screenshots since these might contain OTP codes unless explicitly
@@ -270,11 +279,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
+            // TODO mrn remove this option:
             R.id.action_scan -> {
                 startActivity(Intent(this, ScanTokenActivity::class.java))
                 return true
             }
-
+            // TODO mrn remove this option, maybe:
             R.id.action_add -> {
                 startActivity(Intent(this, AddActivity::class.java))
                 return true

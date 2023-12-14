@@ -34,17 +34,9 @@
         <service
             android:name=".util.AdvertiseBleService"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true"
+            android:process=":ServiceProcess">
         </service>
-
-        <receiver
-            android:name=".util.BluetoothBroadcastReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.bluetooth.adapter.action.STATE_CHANGED" />
-            </intent-filter>
-        </receiver>
 
         <activity
             android:name=".ui.OnboardingActivity"
