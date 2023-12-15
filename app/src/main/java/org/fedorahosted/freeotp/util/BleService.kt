@@ -258,7 +258,7 @@ class BleService : Service() {
 
     @SuppressLint("MissingPermission")
     private fun initBleGattServer() {
-        if ((mBluetoothManager?.getConnectionState(mBleDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED)) {
+        if (isConnectedWithDevice()) {
             Log.i(TAG, "GATT server is already connect to ${mBleDevice?.name}.\nNo need to init the gatt server again.")
             return
         }
@@ -335,8 +335,17 @@ class BleService : Service() {
     @SuppressLint("MissingPermission")
     override fun onDestroy() {
         super.onDestroy()
+        if (isConnectedWithDevice()) {
+            Log.e(TAG, "disconnecting from client")
+            mBluetoothGattServer?.cancelConnection(mBleDevice)
+        }
         mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback) // may be redundant to gattserver.close()
         mBluetoothGattServer?.close()
         Log.i(TAG, "destroyed ble service")
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun isConnectedWithDevice(): Boolean {
+        return mBluetoothManager?.getConnectionState(mBleDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED
     }
 }
