@@ -80,7 +80,7 @@ import org.fedorahosted.freeotp.data.OtpTokenDatabase
 import org.fedorahosted.freeotp.data.OtpTokenFactory
 import org.fedorahosted.freeotp.data.legacy.ImportExportUtil
 import org.fedorahosted.freeotp.databinding.MainBinding
-import org.fedorahosted.freeotp.util.AdvertiseBleService
+import org.fedorahosted.freeotp.util.BleService
 import org.fedorahosted.freeotp.util.Settings
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -89,6 +89,7 @@ import javax.inject.Inject
 import kotlin.math.max
 
 
+private val TAG = "mrnMainActivity"
 private val REQUEST_CODE_BLE_PERMISSIONS = 11
 private var REQUIRED_BLE_PERMISSIONS =  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE)
@@ -123,33 +124,32 @@ class MainActivity : AppCompatActivity() {
 
     private var requestBluetooth = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
-            Log.i("mrnMainActivity", "granted access")
-            Log.i("mrnMainActivity", "starting advertising service")
+            Log.i(TAG, "granted access")
+            Log.i(TAG, "starting advertising service")
             startService()
-//          startService(Intent(this, AdvertiseBleService::class.java))
         }else{
-            Log.i("mrnMainActivity", "denied access")
+            Log.i(TAG, "denied access")
             ble_permissions_denied = true
         }
     }
 
     fun startService() {
-        Log.i("mrnMainActivity", "starting AdvertiseBleService")
-        val serviceIntent = Intent(this, AdvertiseBleService::class.java)
+        Log.i(TAG, "starting AdvertiseBleService")
+        val serviceIntent = Intent(this, BleService::class.java)
         serviceIntent.putExtra("inputExtra", "Foreground Service Example in Android")
         ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     fun stopService() {
-        Log.i("mrnMainActivity", "stopping AdvertiseBleService")
-        val serviceIntent = Intent(this, AdvertiseBleService::class.java)
+        Log.i(TAG, "stopping AdvertiseBleService")
+        val serviceIntent = Intent(this, BleService::class.java)
         stopService(serviceIntent)
     }
 
     fun isServiceRunningInForeground(): Boolean {
         val manager = this.getSystemService(ACTIVITY_SERVICE) as ActivityManager
         for (service in manager.getRunningServices(Int.MAX_VALUE)) {
-            if (AdvertiseBleService::class.java.name == service.service.className) {
+            if (BleService::class.java.name == service.service.className) {
                 if (service.foreground) {
                     return true
                 }
@@ -182,13 +182,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ---- BLuetooth Low Energy related ----- //
-        Log.i("mrnMainActivity", "checking BLE support and asking for permissions")
+        // ---- Bluetooth Low Energy related ----- //
+        Log.i(TAG, "checking BLE support and asking for permissions")
         bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val bluetoothAdapter = bluetoothManager.adapter
         // We can't continue without proper Bluetooth support:
         if (!checkBluetoothSupport(bluetoothAdapter)) {
-            Log.i("mrnMainActivity", "bluetooth not supported")
+            Log.i(TAG, "bluetooth not supported")
             finish()
         }
 
@@ -259,7 +259,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.addTokenFab.setOnClickListener {
             if (allBlePermissionsGranted()) {
-//                Log.i("mrnMainActivity", "${AdvertiseBleService.isConnected}")
+//                Log.i(TAG, "${AdvertiseBleService.isConnected}")
 //                startActivity(Intent(this, ScanTokenActivity::class.java))
             } else {
                 // TODO mrn user erklären was zu tun ist
@@ -292,7 +292,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun activateBluetooth() {
-        Log.i("mrnMainActivity", "asking for basic Bluetooth permission")
+        Log.i(TAG, "asking for basic Bluetooth permission")
         val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
         requestBluetooth.launch(enableBtIntent)
     }

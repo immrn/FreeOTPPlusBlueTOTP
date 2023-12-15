@@ -33,7 +33,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme">
         <service
-            android:name=".util.AdvertiseBleService"
+            android:name=".util.BleService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="connectedDevice">

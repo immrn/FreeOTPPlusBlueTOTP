@@ -36,110 +36,112 @@ import java.util.Arrays
 import java.util.UUID
 
 
-class AdvertiseBleService : Service() {
+private val TAG = "mrnBleService"
+
+class BleService : Service() {
 
     private val CHANNEL_ID = "AdvertiseBleServiceChannel"
-    private lateinit var bluetoothManager: BluetoothManager
-    private lateinit var bluetoothLeAdvertiser: BluetoothLeAdvertiser
+    private var mBluetoothManager: BluetoothManager? = null
+    private lateinit var mBluetoothLeAdvertiser: BluetoothLeAdvertiser
 
-    private var bluetoothGattServer: BluetoothGattServer? = null
-    private lateinit var txCharacteristic: BluetoothGattCharacteristic
-    private var bleDevice: BluetoothDevice? = null
-    private val serviceUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f852")
-    private val txCharUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f853")
+    companion object { private var mBluetoothGattServer: BluetoothGattServer? = null }
+    private lateinit var mTxCharacteristic: BluetoothGattCharacteristic
+    private var mBleDevice: BluetoothDevice? = null
+    private val mServiceUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f852")
+    private val mTxCharUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f853")
     // This descriptor uuid is given by the BLE spec. This tx characteristic may notify the central device, therefore we need this descriptor:
-    private val cccDescriptorUuid: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-    private val rxCharUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f854")
-    val advertiseSettings: AdvertiseSettings = AdvertiseSettings.Builder()
+    private val mCccDescriptorUuid: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+    private val mRxCharUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f854")
+    private val mAdvertiseSettings: AdvertiseSettings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
             .setConnectable(true)
             .setTimeout(0)
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
             .build()
-    val advertiseData: AdvertiseData = AdvertiseData.Builder()
+    private val mAdvertiseData: AdvertiseData = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
             .setIncludeTxPowerLevel(false)
-            .addServiceUuid(ParcelUuid(serviceUuid))
+            .addServiceUuid(ParcelUuid(mServiceUuid))
             .build()
 
     @SuppressLint("MissingPermission")
-    private val gattServerCallback = object : BluetoothGattServerCallback() {
+    private val mGattServerCallback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.i("mrndebug", "BluetoothDevice CONNECTED: $device")
-                if (bleDevice == null) {
-                    bleDevice = device
+                Log.i(TAG, "BluetoothDevice CONNECTED: $device")
+                if (mBleDevice == null) {
+                    mBleDevice = device
                 }
-                bluetoothLeAdvertiser.stopAdvertising(advertiseCallback)
+                mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                Log.i("mrndebug", "BluetoothDevice DISCONNECTED: $device")
+                Log.i(TAG, "BluetoothDevice DISCONNECTED: $device")
                 // TODO mrn we should check if bleDevice == devicebleDevice = null
-                bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
+                mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
             }
         }
 
         override fun onNotificationSent(device: BluetoothDevice?, status: Int) {
             // super.onNotificationSent(device, status)
-            Log.i("mrndebug", "sent notification")
+            Log.i(TAG, "sent notification")
         }
 
         override fun onCharacteristicReadRequest(device: BluetoothDevice, requestId: Int, offset: Int, characteristic: BluetoothGattCharacteristic) {
-            Log.i("mrndebug", "read request")
-            if (characteristic.uuid == txCharUuid) {
-                Log.i("mrndebug", "onChar read request, returning GATT_SUCCESS and null")
-                bluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+            Log.i(TAG, "read request")
+            if (characteristic.uuid == mTxCharUuid) {
+                Log.i(TAG, "onChar read request, returning GATT_SUCCESS and null")
+                mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
             }
             else {
                 // TODO: this if else could be unneccessary, we probably only need the "else" stuff.
                 //  Because the central device will only write, or it will be notified. It will never read.
-                Log.i("mrndebug", "onChar read request, returning GATT_FAILURE and null, " +
+                Log.i(TAG, "onChar read request, returning GATT_FAILURE and null, " +
                         "due unknown uuid")
-                bluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
+                mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
             }
         }
 
         override fun onCharacteristicWriteRequest(device: BluetoothDevice?, requestId: Int, characteristic: BluetoothGattCharacteristic?, preparedWrite: Boolean, responseNeeded: Boolean, offset: Int, value: ByteArray?) {
-            Log.i("mrndebug", "write request")
+            Log.i(TAG, "write request")
             // super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value)
             val strValue = value?.toString(Charsets.UTF_8) ?: ""
-            Log.i("mrndebug", "received value = $strValue")
-            if (characteristic != null && characteristic.uuid == rxCharUuid) {
+            Log.i(TAG, "received value = $strValue")
+            if (characteristic != null && characteristic.uuid == mRxCharUuid) {
                 handleIncomingMessage(strValue)
                 if (responseNeeded) {
-                    Log.i("mrndebug", "responded with GATT_SUCCESS and $strValue")
-                    bluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, strValue.toByteArray(Charsets.UTF_8))
+                    Log.i(TAG, "responded with GATT_SUCCESS and $strValue")
+                    mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, strValue.toByteArray(Charsets.UTF_8))
                 } else {
-                    Log.i("mrndebug", "no response needed")
+                    Log.i(TAG, "no response needed")
                 }
             } else {
                 if (responseNeeded) {
-                    Log.i("mrndebug", "responded with GATT_FAILURE")
-                    bluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
+                    Log.i(TAG, "responded with GATT_FAILURE")
+                    mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
                 } else {
-                    Log.i("mrndebug", "no response needed")
+                    Log.i(TAG, "no response needed")
                 }
             }
         }
 
         override fun onDescriptorReadRequest(device: BluetoothDevice?, requestId: Int, offset: Int, descriptor: BluetoothGattDescriptor?) {
-            Log.i("mrndebug", "descriptor read request")
+            Log.i(TAG, "descriptor read request")
             // super.onDescriptorReadRequest(device, requestId, offset, descriptor)
-            if (descriptor != null && descriptor.uuid == cccDescriptorUuid) {
-                Log.i("mrndebug", "responding with GATT_SUCCESS and ENABLE_NOTIFICATION_VALUE")
+            if (descriptor != null && descriptor.uuid == mCccDescriptorUuid) {
+                Log.i(TAG, "responding with GATT_SUCCESS and ENABLE_NOTIFICATION_VALUE")
                 val ret = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                bluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, ret)
+                mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, ret)
             } else {
-                Log.i("mrndebug", "responding with GATT_FAILURE, due unknown uuid")
-                bluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
+                Log.i(TAG, "responding with GATT_FAILURE, due unknown uuid")
+                mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
             }
         }
 
         override fun onDescriptorWriteRequest(device: BluetoothDevice?, requestId: Int, descriptor: BluetoothGattDescriptor?, preparedWrite: Boolean, responseNeeded: Boolean, offset: Int, value: ByteArray?) {
 //            super.onDescriptorWriteRequest(device, requestId, descriptor, preparedWrite, responseNeeded, offset, value)
-            Log.i("mrndebug", "descriptor write request")
-            if (descriptor != null && descriptor.uuid == cccDescriptorUuid) {
+            Log.i(TAG, "descriptor write request")
+            if (descriptor != null && descriptor.uuid == mCccDescriptorUuid) {
                 var status = BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED
-                if (descriptor.characteristic.uuid == txCharUuid) {
+                if (descriptor.characteristic.uuid == mTxCharUuid) {
                     if (Arrays.equals(value, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
                         status = BluetoothGatt.GATT_SUCCESS
                     } else if (Arrays.equals(value, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)) {
@@ -147,19 +149,19 @@ class AdvertiseBleService : Service() {
                     }
                 }
                 if (responseNeeded) {
-                    Log.i("mrndebug", "responding with $status")
-                    bluetoothGattServer?.sendResponse(device, requestId, status, 0, null)
+                    Log.i(TAG, "responding with $status")
+                    mBluetoothGattServer?.sendResponse(device, requestId, status, 0, null)
                 }
             } else {
-                Log.i("mrndebug", "responding with GATT_FAILURE due unknown uuid")
-                bluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
+                Log.i(TAG, "responding with GATT_FAILURE due unknown uuid")
+                mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
             }
         }
     }
 
-    private val advertiseCallback = object : AdvertiseCallback() {
+    private val mAdvertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-            Log.i("mrndebug", "LE Advertise Started.")
+            Log.i(TAG, "LE Advertise Started.")
         }
 
         @SuppressLint("MissingPermission")
@@ -168,9 +170,9 @@ class AdvertiseBleService : Service() {
             when (errorCode) {
                 1 -> {
                     errorMsg = "Failed to start advertising as the advertise data to be broadcasted is larger than 31 bytes."
-                    Log.i("mrndebug", "Bluetooth adapter name before: ${bluetoothManager.adapter.name}")
-                    bluetoothManager.adapter.name = bluetoothManager.adapter.name.replace(" ", "").take(8)
-                    Log.i("mrndebug", "Bluetooth adapter name: ${bluetoothManager.adapter.name}")
+                    Log.i(TAG, "Bluetooth adapter name before: ${mBluetoothManager?.adapter?.name}")
+                    mBluetoothManager?.adapter?.name = mBluetoothManager?.adapter?.name?.replace(" ", "")?.take(8)
+                    Log.i(TAG, "Bluetooth adapter name: ${mBluetoothManager?.adapter?.name}")
                     // TODO mrn maybe restart service here, restarting advertising ends in a recursive IDE error
                 }
                 2 -> errorMsg = "Failed to start advertising because no advertising instance is available."
@@ -178,16 +180,16 @@ class AdvertiseBleService : Service() {
                 4 -> errorMsg = "Operation failed due to an internal error."
                 5 -> errorMsg = "This feature is not supported on this platform."
             }
-            Log.w("mrndebug", "LE Advertise Failed (name: ${bluetoothManager.adapter.name}): $errorMsg")
+            Log.w(TAG, "LE Advertise Failed (name: ${mBluetoothManager?.adapter?.name}): $errorMsg")
         }
     }
 
     @SuppressLint("MissingPermission")
     private fun sendBle(message: String) {
-        txCharacteristic.let{
+        mTxCharacteristic.let{
             it.value = message.toByteArray(Charsets.UTF_8)
-            Log.i("mrndebug", "sending notify: $message")
-            bluetoothGattServer?.notifyCharacteristicChanged(bleDevice, it, true)
+            Log.i(TAG, "sending notify: $message")
+            mBluetoothGattServer?.notifyCharacteristicChanged(mBleDevice, it, true)
         }
     }
 
@@ -214,11 +216,11 @@ class AdvertiseBleService : Service() {
     }
 
     private fun handleIncomingMessage(message: String) {
-        Log.i("mrndebug", "handling message: $message\nType of message: " + message::class.simpleName)
+        Log.i(TAG, "handling message: $message\nType of message: " + message::class.simpleName)
         val msg: Map<String, *>
         try {
             msg = JSONObject(message).toMap()
-            Log.i("mrndebug", "parsed: $msg")
+            Log.i(TAG, "parsed: $msg")
             when (msg["key"]) {
                 "request_totp" -> {
                     val totp = getTotp(msg["domain"].toString(), msg["username"].toString())
@@ -235,7 +237,7 @@ class AdvertiseBleService : Service() {
                 }
             }
         } catch (e: JSONException) {
-            Log.e("mrndebug", e.stackTraceToString())
+            Log.e(TAG, e.stackTraceToString())
         }
 
     }
@@ -255,39 +257,41 @@ class AdvertiseBleService : Service() {
     }
 
     @SuppressLint("MissingPermission")
-    private fun initBleAdvertising() {
-        Log.i("mrndebug", "starting BLE Service")
+    private fun initBleGattServer() {
+        if ((mBluetoothManager?.getConnectionState(mBleDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED)) {
+            Log.i(TAG, "GATT server is already connect to ${mBleDevice?.name}.\nNo need to init the gatt server again.")
+            return
+        }
 
-        bluetoothManager =  getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothLeAdvertiser = bluetoothManager.adapter.bluetoothLeAdvertiser
-        bluetoothGattServer = bluetoothManager.openGattServer(this, gattServerCallback)
-        Log.i("mrndebug", "Bluetooth adapter name before: ${bluetoothManager.adapter.name}")
-        bluetoothManager.adapter.name = bluetoothManager.adapter.name.replace(" ", "").take(8)
-        Log.i("mrndebug", "Bluetooth adapter name: ${bluetoothManager.adapter.name}")
+        Log.i(TAG, "Initializing the GATT server")
+        mBluetoothManager =  getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        mBluetoothLeAdvertiser = mBluetoothManager!!.adapter.bluetoothLeAdvertiser
+        mBluetoothGattServer = mBluetoothManager!!.openGattServer(this, mGattServerCallback)
+        mBluetoothManager!!.adapter.name = mBluetoothManager!!.adapter.name.replace(" ", "").take(8)
+        Log.i(TAG, "Bluetooth adapter name: ${mBluetoothManager!!.adapter.name}")
 
         val rxTxService = BluetoothGattService(
-                serviceUuid,
+                mServiceUuid,
                 BluetoothGattService.SERVICE_TYPE_PRIMARY)
         val rxCharacteristic = BluetoothGattCharacteristic(
-                rxCharUuid,
+                mRxCharUuid,
                 BluetoothGattCharacteristic.PROPERTY_WRITE,
                 BluetoothGattCharacteristic.PERMISSION_WRITE)
-        txCharacteristic = BluetoothGattCharacteristic(
-                txCharUuid,
+        mTxCharacteristic = BluetoothGattCharacteristic(
+                mTxCharUuid,
                 BluetoothGattCharacteristic.PROPERTY_NOTIFY,
                 BluetoothGattCharacteristic.PERMISSION_READ)
         val txDescriptor = BluetoothGattDescriptor(
-                cccDescriptorUuid,
+                mCccDescriptorUuid,
                 BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
         )
 
-        txCharacteristic.addDescriptor(txDescriptor)
+        mTxCharacteristic.addDescriptor(txDescriptor)
         rxTxService.addCharacteristic(rxCharacteristic)
-        rxTxService.addCharacteristic(txCharacteristic)
+        rxTxService.addCharacteristic(mTxCharacteristic)
 
-        bluetoothGattServer?.addService(rxTxService)
-                ?: Log.w("mrndebug", "Unable to create GATT server")
-        bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
+        mBluetoothGattServer?.addService(rxTxService)
+                ?: Log.w(TAG, "Unable to create GATT server")
     }
 
     private fun createNotificationChannel() {
@@ -302,6 +306,7 @@ class AdvertiseBleService : Service() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val input = intent!!.getStringExtra("inputExtra")
         createNotificationChannel()
@@ -318,8 +323,8 @@ class AdvertiseBleService : Service() {
 
         startForeground(1, notification)
 
-        initBleAdvertising()
-//        return START_STICKY
+        initBleGattServer()
+        mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
         return START_NOT_STICKY
     }
 
@@ -330,8 +335,8 @@ class AdvertiseBleService : Service() {
     @SuppressLint("MissingPermission")
     override fun onDestroy() {
         super.onDestroy()
-        bluetoothLeAdvertiser.stopAdvertising(advertiseCallback) // may be redundant to gattserver.close()
-        bluetoothGattServer?.close()
-        Log.i("mrndebug", "destroyed ble service")
+        mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback) // may be redundant to gattserver.close()
+        mBluetoothGattServer?.close()
+        Log.i(TAG, "destroyed ble service")
     }
 }
