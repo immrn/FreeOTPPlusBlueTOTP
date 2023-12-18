@@ -23,6 +23,12 @@ interface OtpTokenDao {
     @Query("select * from otp_tokens where id = :id")
     fun get(id: Long): Flow<OtpToken?>
 
+    @Query("select * from otp_tokens where id = (select max(id) from otp_tokens)")
+    fun getLatest(): Flow<OtpToken?>
+
+    @Query("select * from otp_tokens where domain = :domain and username = :username")
+    fun getByDomainAndUsername(domain: String, username: String): Flow<OtpToken?>
+
     @Query("select ordinal from otp_tokens order by ordinal desc limit 1")
     fun getLastOrdinal(): Long?
 

@@ -28,25 +28,62 @@ import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import org.fedorahosted.freeotp.data.OtpTokenDatabase
+import org.fedorahosted.freeotp.data.util.TokenCodeUtil
 import org.fedorahosted.freeotp.ui.MainActivity
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.util.Arrays
 import java.util.UUID
+import javax.inject.Inject
 
 
 private val TAG = "mrnBleService"
 
-class BleService : Service() {
+@AndroidEntryPoint
+class BleService : Service () {
+    companion object {
+        private var mBluetoothManager: BluetoothManager? = null
+        private var mBleDevice: BluetoothDevice? = null
+        private lateinit var mTxCharacteristic: BluetoothGattCharacteristic
+        private var mBluetoothGattServer: BluetoothGattServer? = null
+
+        var extWaitsForQrScan: Boolean = false
+        @SuppressLint("MissingPermission")
+        fun isConnectedWithDevice(): Boolean {
+            return mBluetoothManager?.getConnectionState(mBleDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED
+        }
+
+        @SuppressLint("MissingPermission")
+        fun sendBle(message: Map<String, String>) {
+            val messageStr = message.toString()
+                    .replace("=", "\": \"")
+                    .replace("{", "{\"")
+                    .replace(", ", "\", \"")
+                    .replace("}", "\"}")
+            mTxCharacteristic.let{
+                it.value = messageStr.toByteArray(Charsets.UTF_8)
+                Log.i(TAG, "sending notify: $message")
+                mBluetoothGattServer?.notifyCharacteristicChanged(mBleDevice, it, true)
+            }
+        }
+    }
+
+    @Inject lateinit var otpTokenDatabase: OtpTokenDatabase
+    @Inject lateinit var tokenCodeUtil: TokenCodeUtil
+
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + job)
 
     private val CHANNEL_ID = "AdvertiseBleServiceChannel"
-    private var mBluetoothManager: BluetoothManager? = null
     private lateinit var mBluetoothLeAdvertiser: BluetoothLeAdvertiser
-
-    companion object { private var mBluetoothGattServer: BluetoothGattServer? = null }
-    private lateinit var mTxCharacteristic: BluetoothGattCharacteristic
-    private var mBleDevice: BluetoothDevice? = null
     private val mServiceUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f852")
     private val mTxCharUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f853")
     // This descriptor uuid is given by the BLE spec. This tx characteristic may notify the central device, therefore we need this descriptor:
@@ -76,13 +113,13 @@ class BleService : Service() {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "BluetoothDevice DISCONNECTED: $device")
                 // TODO mrn we should check if bleDevice == devicebleDevice = null
+                extWaitsForQrScan = false
                 mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
             }
         }
 
         override fun onNotificationSent(device: BluetoothDevice?, status: Int) {
             // super.onNotificationSent(device, status)
-            Log.i(TAG, "sent notification")
         }
 
         override fun onCharacteristicReadRequest(device: BluetoothDevice, requestId: Int, offset: Int, characteristic: BluetoothGattCharacteristic) {
@@ -101,10 +138,9 @@ class BleService : Service() {
         }
 
         override fun onCharacteristicWriteRequest(device: BluetoothDevice?, requestId: Int, characteristic: BluetoothGattCharacteristic?, preparedWrite: Boolean, responseNeeded: Boolean, offset: Int, value: ByteArray?) {
-            Log.i(TAG, "write request")
             // super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value)
             val strValue = value?.toString(Charsets.UTF_8) ?: ""
-            Log.i(TAG, "received value = $strValue")
+            Log.i(TAG, "received msg: $strValue")
             if (characteristic != null && characteristic.uuid == mRxCharUuid) {
                 handleIncomingMessage(strValue)
                 if (responseNeeded) {
@@ -184,56 +220,52 @@ class BleService : Service() {
         }
     }
 
-    @SuppressLint("MissingPermission")
-    private fun sendBle(message: String) {
-        mTxCharacteristic.let{
-            it.value = message.toByteArray(Charsets.UTF_8)
-            Log.i(TAG, "sending notify: $message")
-            mBluetoothGattServer?.notifyCharacteristicChanged(mBleDevice, it, true)
-        }
-    }
-
-    private fun getTotp(domain: String, username: String): String {
-        // from TokenPersistence.kt:
-//        val gson: Gson = Gson()
-//        val savedTokens = gson.fromJson(jsonString, SavedTokens::class.java)
-//        or (token in savedTokens.tokens) {
-//            save(token)
-//        }
-//        val prefs: SharedPreferences = this.applicationContext.getSharedPreferences("tokens", Context.MODE_PRIVATE)
-//        val str = prefs.getString(id, null)
-//        Token(str, true)
-//
-//        var mCodes: TokenCode? = null
-//        val code = mCodes?.currentCode?: run {
-//            mCode.text = mPlaceholder
-//            mProgressInner.visibility = View.GONE
-//            mProgressOuter.visibility = View.GONE
-//            animate(mImage, R.anim.token_image_fadein, true)
-//            return
-//        }
-        return 420609.toString()
-    }
-
     private fun handleIncomingMessage(message: String) {
-        Log.i(TAG, "handling message: $message\nType of message: " + message::class.simpleName)
         val msg: Map<String, *>
         try {
             msg = JSONObject(message).toMap()
-            Log.i(TAG, "parsed: $msg")
+            Log.i(TAG, "parsed to map: $msg")
             when (msg["key"]) {
+                "await_qr_scan" -> {
+                    extWaitsForQrScan = true
+                }
+                "dont_await_qr_scan" -> {
+                    extWaitsForQrScan = false
+                }
+                "response_setup_domain_username" -> {
+                    if (extWaitsForQrScan) {
+                        scope.launch {
+                            val token = otpTokenDatabase.otpTokenDao().getLatest().first() ?: return@launch
+                            val newToken = token.copy(
+                                domain = msg["domain"].toString(),
+                                username = msg["username"].toString()
+                            )
+
+                            otpTokenDatabase.otpTokenDao().update(newToken)
+                            sendBle(mapOf("key" to "setup_complete"))
+                            return@launch
+                        }
+                    }
+                }
                 "request_totp" -> {
-                    val totp = getTotp(msg["domain"].toString(), msg["username"].toString())
-                    sendBle(
-                        mapOf(
-                            "key" to "totp",
-                            "totp" to totp
-                        ).toString()
-                                .replace("=", "\": \"")
-                                .replace("{", "{\"")
-                                .replace(", ", "\", \"")
-                                .replace("}", "\"}")
-                    )
+                    val domain = msg["domain"].toString()
+                    val username = msg["username"].toString()
+                    scope.launch {
+                        val token = otpTokenDatabase.otpTokenDao().getByDomainAndUsername(domain, username).first()
+                        if (token == null) {
+                            sendBle(mapOf(
+                                    "key" to "response_totp",
+                                    "totp" to "null"
+                            ))
+                            return@launch
+                        }
+                        val totp = tokenCodeUtil.generateTokenCode(token).currentCode!!
+                        sendBle(mapOf(
+                                "key" to "response_totp",
+                                "totp" to totp
+                        ))
+                        return@launch
+                    }
                 }
             }
         } catch (e: JSONException) {
@@ -335,17 +367,14 @@ class BleService : Service() {
     @SuppressLint("MissingPermission")
     override fun onDestroy() {
         super.onDestroy()
+        job.cancel()
+
         if (isConnectedWithDevice()) {
-            Log.e(TAG, "disconnecting from client")
+            Log.i(TAG, "disconnecting from client")
             mBluetoothGattServer?.cancelConnection(mBleDevice)
         }
         mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback) // may be redundant to gattserver.close()
         mBluetoothGattServer?.close()
         Log.i(TAG, "destroyed ble service")
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun isConnectedWithDevice(): Boolean {
-        return mBluetoothManager?.getConnectionState(mBleDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED
     }
 }

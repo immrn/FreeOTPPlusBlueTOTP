@@ -29,6 +29,7 @@ import org.fedorahosted.freeotp.R
 import org.fedorahosted.freeotp.data.OtpTokenDatabase
 import org.fedorahosted.freeotp.data.OtpTokenFactory
 import org.fedorahosted.freeotp.databinding.ActivityScanTokenBinding
+import org.fedorahosted.freeotp.util.BleService
 import org.fedorahosted.freeotp.util.ImageUtil
 import org.fedorahosted.freeotp.util.TokenQRCodeDecoder
 import java.util.concurrent.ExecutorService
@@ -144,6 +145,8 @@ class ScanTokenActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val token = try {
                 val t = OtpTokenFactory.createFromUri((Uri.parse(tokenString)))
+                // createFromUri sets the id = 0 always, so we can't use this info, but the newest
+                // token is always the one with the highest id
                 otpTokenDatabase.otpTokenDao().insert(t)
                 t
             } catch (e: Throwable) {
@@ -154,6 +157,9 @@ class ScanTokenActivity : AppCompatActivity() {
             }
 
             Toast.makeText(this@ScanTokenActivity, R.string.add_token_success, Toast.LENGTH_SHORT).show()
+
+            // Tell the extension, that we need the domain and username:
+            BleService.sendBle(mapOf("key" to "request_setup_domain_and_username"))
 
             setResult(RESULT_OK)
             if (token.imagePath == null) {

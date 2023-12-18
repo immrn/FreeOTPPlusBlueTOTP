@@ -258,11 +258,12 @@ class MainActivity : AppCompatActivity() {
         })
 
         binding.addTokenFab.setOnClickListener {
-            if (allBlePermissionsGranted()) {
-//                Log.i(TAG, "${AdvertiseBleService.isConnected}")
-//                startActivity(Intent(this, ScanTokenActivity::class.java))
-            } else {
-                // TODO mrn user erklären was zu tun ist
+            if (BleService.isConnectedWithDevice() && BleService.extWaitsForQrScan) {
+                startActivity(Intent(this, ScanTokenActivity::class.java))
+                // TODO rausfinden wo in ScanActivity der QR code erfolgreich gescannt wurde und in diesem Moment fordert das smartphone username und domain an
+            }
+            else {
+                startActivity(Intent(this, ConnectExtensionActivity::class.java))
             }
         }
 

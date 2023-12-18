@@ -84,10 +84,19 @@
     <string name="onb_dont_show_again">Don\'t show this hint again</string>
     <string name="onb_continue">Continue</string>
 
+    <string name="ext_title">Connect with the Blue TOTP Extension</string>
+    <string name="ext_step_1">Enable Bluetooth on this Smartphone.</string>
+    <string name="ext_step_2">Open the Blue TOTP Extension on your Chrome Browser at your Windows-PC.</string>
+    <string name="ext_step_3">There you should click on "Search devcice".</string>
+    <string name="ext_step_4">Visit a website, where you want to setup two factor authentication.</string>
+    <string name="ext_step_5">Open the extension again and start the setup.</string>
+    <string name="ext_ok">Ok</string>
+
     <string name="preference_file_key">com.example.freeotpplusbluetotp.preference_file</string>
     <string name="show_onb_key">show_hint_key</string>
     <string name="cant_create_new_profile_text">Can\'t create new profile.</string>
     <string name="ble_permissions_denied_text">You\'ve denied necessary Bluetooth permissions.</string>
     <string name="stopped_ble_service">Disabled Bluetooth radio (saving power)</string>
     <string name="started_ble_service">Enabled Bluetooth radio</string>
+    <string name="title_activity_connect_extension">connectExtensionActivity</string>
 </resources>
