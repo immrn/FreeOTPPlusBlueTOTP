@@ -416,18 +416,23 @@ class BleService : Service () {
 
     @SuppressLint("MissingPermission")
     override fun onDestroy() {
-        super.onDestroy()
+        // Technically, onDestroy() will only be called when Android itself closes the service
+        // (when it needs performance capabilities or memory) or stopSelf() or similar is called (
+        // not the case at the moment). The other way to stop this foreground service is the user
+        // stopping it via the task manager. But that doesn't call onDestroy().
+        // Because of this the the client will not get informed about disconnects made by the user
+        // stopping the service via the android task manager.
         job.cancel() // coroutine related
         unregisterReceiver(mBleBroadcastReceiver)
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mBleServiceBroadcastReceiver)
 
         if (isConnectedWithDevice()) {
-            Log.i(TAG, "disconnecting from client")
             mBluetoothGattServer?.cancelConnection(mBleDevice)
         }
         mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback) // may be redundant to gattserver.close()
         mBluetoothGattServer?.close()
 
         Log.i(TAG, "destroyed ble service")
+        super.onDestroy()
     }
 }

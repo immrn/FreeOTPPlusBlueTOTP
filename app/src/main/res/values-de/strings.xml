@@ -74,7 +74,7 @@
     <string name="ext_title">Verbinden mit der Blue TOTP Extension</string>
     <string name="ext_step_1">Aktivieren Sie Bluetooth auf diesem Smartphone.</string>
     <string name="ext_step_2">Öffnen Sie die Blue TOTP Extension im Chrome Browser Ihres Windows-PCs.</string>
-    <string name="ext_step_3">Klicken Sie dort auf "Gerät suchen".</string>
+    <string name="ext_step_3">Klicken Sie dort auf "Gerät suchen" und verbinden Sie sich zu diesem Smartphone.</string>
     <string name="ext_step_4">Besuchen Sie eine Website, bei der Sie Zwei-Faktor-Authentisierung einrichten möchten.</string>
     <string name="ext_step_5">Öffnen Sie wieder die Blue TOTP Extension und starten Sie die Einrichtung.</string>
 
