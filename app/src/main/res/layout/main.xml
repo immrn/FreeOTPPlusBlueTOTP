@@ -19,12 +19,13 @@
    - limitations under the License.
    -->
 
-<androidx.coordinatorlayout.widget.CoordinatorLayout
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
 	android:id="@+id/root_view"
 	android:layout_width="match_parent"
-	android:layout_height="match_parent"
-	xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:app="http://schemas.android.com/apk/res-auto">
+	android:layout_height="match_parent">
+
 	<com.google.android.material.appbar.AppBarLayout
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content">
@@ -32,7 +33,8 @@
 		<com.google.android.material.appbar.MaterialToolbar
 			android:id="@+id/toolbar"
 			android:layout_width="match_parent"
-			android:layout_height="?attr/actionBarSize">
+			android:layout_height="?attr/actionBarSize"
+			android:background="#00000000">
 
 			<androidx.appcompat.widget.SearchView
 				android:id="@+id/search_view"
@@ -41,6 +43,7 @@
 				android:layout_gravity="end"
 				android:layout_marginEnd="@dimen/space_2"
 				android:iconifiedByDefault="true">
+
 			</androidx.appcompat.widget.SearchView>
 
 			<ImageButton
@@ -49,10 +52,41 @@
 				android:layout_height="wrap_content"
 				android:layout_gravity="end"
 				android:adjustViewBounds="true"
+				android:background="#00000000"
 				android:padding="7dp"
 				android:scaleType="fitCenter"
-				android:src="@drawable/bt_icon_enabled" />
+				android:src="@drawable/bt_icon_enabled"
+				android:visibility="gone" />
+
 		</com.google.android.material.appbar.MaterialToolbar>
+
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:id="@+id/layoutConnectionState"
+			android:layout_width="match_parent"
+			android:layout_height="30dp"
+			android:background="#8EAE01">
+
+			<ImageView
+				android:id="@+id/imageViewConnectionState"
+				android:layout_width="25dp"
+				android:layout_height="match_parent"
+				android:padding="3dp"
+				android:src="@drawable/connection_state_connected"
+				android:translationX="10dp"
+				app:layout_constraintStart_toStartOf="parent" />
+
+			<TextView
+				android:id="@+id/textViewConnectionState"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="16dp"
+				android:text="connection status"
+				android:textColor="#FFFFFF"
+				android:textSize="16sp"
+				app:layout_constraintBottom_toBottomOf="parent"
+				app:layout_constraintStart_toEndOf="@+id/imageViewConnectionState"
+				app:layout_constraintTop_toTopOf="parent" />
+		</androidx.constraintlayout.widget.ConstraintLayout>
 
 	</com.google.android.material.appbar.AppBarLayout>
 
@@ -88,4 +122,5 @@
 		android:layout_margin="24dp"
 		android:contentDescription="@string/add_token"
 		app:srcCompat="@drawable/camera" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -37,14 +37,17 @@
 package org.fedorahosted.freeotp.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityManager
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.content.res.Configuration
@@ -56,6 +59,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.AlphaAnimation
 import android.widget.SearchView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -67,6 +71,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView.AdapterDataObserver
@@ -113,6 +118,20 @@ class MainActivity : AppCompatActivity() {
     private var menu: Menu? = null
     private var lastSessionEndTimestamp = 0L;
 
+    private var mMainActivityBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            Log.i(TAG, "received broadcast with action ${intent.action.toString()}")
+            when (intent.action) {
+                BleService.DISCONNECTED_ACTION -> {
+                    showConnectionState(isConnected = false)
+                }
+                BleService.CONNECTED_ACTION -> {
+                    showConnectionState(isConnected = true)
+                }
+            }
+        }
+    }
+
     private val tokenListObserver: AdapterDataObserver = object: AdapterDataObserver() {
         override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
             super.onItemRangeInserted(positionStart, itemCount)
@@ -134,9 +153,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun startService() {
-        Log.i(TAG, "starting AdvertiseBleService")
+        Log.i(TAG, "starting BleService")
         val serviceIntent = Intent(this, BleService::class.java)
-        serviceIntent.putExtra("inputExtra", "Foreground Service Example in Android")
         ContextCompat.startForegroundService(this, serviceIntent)
     }
 
@@ -260,7 +278,6 @@ class MainActivity : AppCompatActivity() {
         binding.addTokenFab.setOnClickListener {
             if (BleService.isConnectedWithDevice() && BleService.extWaitsForQrScan) {
                 startActivity(Intent(this, ScanTokenActivity::class.java))
-                // TODO rausfinden wo in ScanActivity der QR code erfolgreich gescannt wurde und in diesem Moment fordert das smartphone username und domain an
             }
             else {
                 startActivity(Intent(this, ConnectExtensionActivity::class.java))
@@ -268,6 +285,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setBtButtonDrawable(enabled = true)
+//        binding.bleOnOff.setBackgroundColor(Color.parseColor("#00000000"))
         binding.bleOnOff.setOnClickListener {
             val isOn = isServiceRunningInForeground()
             if (isOn) {
@@ -290,6 +308,27 @@ class MainActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.FLAG_SECURE
             )
         }
+
+        // Show connection state:
+        showConnectionState(isConnected = BleService.isConnectedWithDevice())
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(BleService.CONNECTED_ACTION)
+        intentFilter.addAction(BleService.DISCONNECTED_ACTION)
+        LocalBroadcastManager.getInstance(this).registerReceiver(mMainActivityBroadcastReceiver, intentFilter)
+    }
+
+    private fun showConnectionState(isConnected: Boolean) {
+        if (isConnected){
+//            Toast.makeText(applicationContext, getString(R.string.connected), Toast.LENGTH_SHORT).show();
+            binding.layoutConnectionState.setBackgroundColor(Color.parseColor("#8EAE01"))
+            binding.imageViewConnectionState.setImageResource(R.drawable.connection_state_connected)
+            binding.textViewConnectionState.setText(R.string.connected)
+        } else {
+//            Toast.makeText(applicationContext, getString(R.string.disconnected), Toast.LENGTH_SHORT).show();
+            binding.layoutConnectionState.setBackgroundColor(Color.parseColor("#DC5812"))
+            binding.imageViewConnectionState.setImageResource(R.drawable.connection_state_disconnected)
+            binding.textViewConnectionState.setText(R.string.disconnected)
+        }
     }
 
     private fun activateBluetooth() {
@@ -300,6 +339,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mMainActivityBroadcastReceiver)
         tokenListAdapter.unregisterAdapterDataObserver(tokenListObserver)
         lastSessionEndTimestamp = 0L;
     }
@@ -602,11 +642,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setBtButtonDrawable(enabled: Boolean) {
-
         if (enabled) {
             binding.bleOnOff.setImageResource(R.drawable.bt_icon_enabled)
             binding.bleOnOff.setColorFilter(Color.parseColor("#FFFFFF"))
-            binding.bleOnOff.setBackgroundColor(Color.parseColor("#00000000"))
         } else {
             binding.bleOnOff.setImageResource(R.drawable.bt_icon_disabled)
             if (isDarkmode()) {
@@ -614,7 +652,6 @@ class MainActivity : AppCompatActivity() {
             } else {
                 binding.bleOnOff.setColorFilter(Color.parseColor("#303030"))
             }
-            binding.bleOnOff.setBackgroundColor(Color.parseColor("#00000000"))
         }
     }
 

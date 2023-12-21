@@ -99,4 +99,6 @@
     <string name="stopped_ble_service">Disabled Bluetooth radio (saving power)</string>
     <string name="started_ble_service">Enabled Bluetooth radio</string>
     <string name="title_activity_connect_extension">connectExtensionActivity</string>
+    <string name="disconnected">Disconnected from browser extension.</string>
+    <string name="connected">Connected to browser extension.</string>
 </resources>

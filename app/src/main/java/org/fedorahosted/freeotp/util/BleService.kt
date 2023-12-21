@@ -8,6 +8,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
@@ -21,17 +22,22 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.fedorahosted.freeotp.data.OtpTokenDatabase
@@ -49,16 +55,26 @@ private val TAG = "mrnBleService"
 
 @AndroidEntryPoint
 class BleService : Service () {
+    init { val instance = this }
     companion object {
+        const val START_ADVERTISING_ACTION = "org.fedorahosted.freeotp.BLE_SERVICE_START_ADVERTISING"
+        const val CONNECTED_ACTION = "org.fedorahosted.freeotp.BLE_SERVICE_CONNECTED"
+        const val DISCONNECTED_ACTION = "org.fedorahosted.freeotp.BLE_SERVICE_DISCONNECTED"
         private var mBluetoothManager: BluetoothManager? = null
         private var mBleDevice: BluetoothDevice? = null
         private lateinit var mTxCharacteristic: BluetoothGattCharacteristic
         private var mBluetoothGattServer: BluetoothGattServer? = null
 
         var extWaitsForQrScan: Boolean = false
+
         @SuppressLint("MissingPermission")
         fun isConnectedWithDevice(): Boolean {
             return mBluetoothManager?.getConnectionState(mBleDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED
+        }
+
+        var instance: BleService? = null
+        fun applicationContext(): Context {
+            return instance!!.applicationContext
         }
 
         @SuppressLint("MissingPermission")
@@ -68,10 +84,25 @@ class BleService : Service () {
                     .replace("{", "{\"")
                     .replace(", ", "\", \"")
                     .replace("}", "\"}")
-            mTxCharacteristic.let{
+            mTxCharacteristic.let {
                 it.value = messageStr.toByteArray(Charsets.UTF_8)
                 Log.i(TAG, "sending notify: $message")
                 mBluetoothGattServer?.notifyCharacteristicChanged(mBleDevice, it, true)
+            }
+        }
+    }
+
+    private val mBleBroadcastReceiver: BleBroadcastReceiver = BleBroadcastReceiver()
+    private var mBleServiceBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
+        override fun onReceive(context: Context, intent: Intent) {
+            Log.i(TAG, "received broadcast with action ${intent.action.toString()}")
+            when (intent.action) {
+                START_ADVERTISING_ACTION -> {
+                    mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback)
+                    shortenBtAdapterName()
+                    mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
+                }
             }
         }
     }
@@ -110,10 +141,14 @@ class BleService : Service () {
                     mBleDevice = device
                 }
                 mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback)
+                val intent = Intent(CONNECTED_ACTION)
+                LocalBroadcastManager.getInstance(applicationContext()).sendBroadcast(intent)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "BluetoothDevice DISCONNECTED: $device")
-                // TODO mrn we should check if bleDevice == devicebleDevice = null
                 extWaitsForQrScan = false
+                val intent = Intent(DISCONNECTED_ACTION)
+                LocalBroadcastManager.getInstance(applicationContext()).sendBroadcast(intent)
+                mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback)
                 mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
             }
         }
@@ -129,8 +164,8 @@ class BleService : Service () {
                 mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
             }
             else {
-                // TODO: this if else could be unneccessary, we probably only need the "else" stuff.
-                //  Because the central device will only write, or it will be notified. It will never read.
+                // This if statement is unnecessary, we only need the "else" stuff.
+                // Because the central device will only write, or it will be notified. It will never read.
                 Log.i(TAG, "onChar read request, returning GATT_FAILURE and null, " +
                         "due unknown uuid")
                 mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
@@ -206,17 +241,22 @@ class BleService : Service () {
             when (errorCode) {
                 1 -> {
                     errorMsg = "Failed to start advertising as the advertise data to be broadcasted is larger than 31 bytes."
-                    Log.i(TAG, "Bluetooth adapter name before: ${mBluetoothManager?.adapter?.name}")
-                    mBluetoothManager?.adapter?.name = mBluetoothManager?.adapter?.name?.replace(" ", "")?.take(8)
-                    Log.i(TAG, "Bluetooth adapter name: ${mBluetoothManager?.adapter?.name}")
-                    // TODO mrn maybe restart service here, restarting advertising ends in a recursive IDE error
+                    scope.launch{
+                        Log.i(TAG, "shortening BT adapter name")
+                        shortenBtAdapterName()
+                        delay(4000)
+                        Log.i(TAG, "shortened Bluetooth adapter name: ${mBluetoothManager?.adapter?.name}")
+                        // calling startAdvertising() here with this (callback) to restart it automatically, ends in a recursive IDE error, so use broadcast receiver:
+                        val advIntent = Intent(START_ADVERTISING_ACTION)
+                        LocalBroadcastManager.getInstance(applicationContext()).sendBroadcast(advIntent)
+                    }
                 }
                 2 -> errorMsg = "Failed to start advertising because no advertising instance is available."
                 3 -> errorMsg = "Failed to start advertising as the advertising is already started"
                 4 -> errorMsg = "Operation failed due to an internal error."
                 5 -> errorMsg = "This feature is not supported on this platform."
             }
-            Log.w(TAG, "LE Advertise Failed (name: ${mBluetoothManager?.adapter?.name}): $errorMsg")
+            Log.e(TAG, "LE Advertise Failed (name: ${mBluetoothManager?.adapter?.name}): $errorMsg")
         }
     }
 
@@ -339,24 +379,34 @@ class BleService : Service () {
     }
 
     @SuppressLint("MissingPermission")
+    private fun shortenBtAdapterName() {
+        mBluetoothManager?.adapter?.name = mBluetoothManager?.adapter?.name?.replace(" ", "")?.take(8)
+    }
+
+    @SuppressLint("MissingPermission")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        instance = this
         val input = intent!!.getStringExtra("inputExtra")
         createNotificationChannel()
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this,
-                0, notificationIntent, FLAG_IMMUTABLE)
-
+            0, notificationIntent, FLAG_IMMUTABLE)
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Foreground Service")
-                .setContentText(input)
-                .setSmallIcon(R.drawable.arrow_up_float)
-                .setContentIntent(pendingIntent)
-                .build()
+            .setContentTitle("Foreground Service")
+            .setContentText(input)
+            .setSmallIcon(R.drawable.arrow_up_float)
+            .setContentIntent(pendingIntent)
+            .build()
 
         startForeground(1, notification)
-
         initBleGattServer()
         mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
+
+        // When the user enables or disables Bluetooth, we want to restart/stop advertising.
+        val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        registerReceiver(mBleBroadcastReceiver, intentFilter)
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBleServiceBroadcastReceiver, IntentFilter(START_ADVERTISING_ACTION))
+
         return START_NOT_STICKY
     }
 
@@ -367,7 +417,9 @@ class BleService : Service () {
     @SuppressLint("MissingPermission")
     override fun onDestroy() {
         super.onDestroy()
-        job.cancel()
+        job.cancel() // coroutine related
+        unregisterReceiver(mBleBroadcastReceiver)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBleServiceBroadcastReceiver)
 
         if (isConnectedWithDevice()) {
             Log.i(TAG, "disconnecting from client")
@@ -375,6 +427,7 @@ class BleService : Service () {
         }
         mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback) // may be redundant to gattserver.close()
         mBluetoothGattServer?.close()
+
         Log.i(TAG, "destroyed ble service")
     }
 }

@@ -82,4 +82,6 @@
     <string name="ble_permissions_denied_text">Sie haben die notwendigen Bluetooth-Berechtigungen abgelehnt.</string>
     <string name="stopped_ble_service">Bluetooth-Funk deaktiviert (spart Strom)</string>
     <string name="started_ble_service">Bluetooth-Funk aktiviert</string>
+    <string name="disconnected">Verbindung mit Browser Extension getrennt.</string>
+    <string name="connected">Verbunden mit Browser Extension.</string>
 </resources>
