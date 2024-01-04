@@ -301,12 +301,8 @@ class MainActivity : AppCompatActivity() {
 
         // Don't permit screenshots since these might contain OTP codes unless explicitly
         // launched with screenshot mode
-
         if (intent.extras?.getBoolean(SCREENSHOT_MODE_EXTRA) != true) {
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_SECURE,
-                WindowManager.LayoutParams.FLAG_SECURE
-            )
+            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         }
 
         // Show connection state:
@@ -364,37 +360,31 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            // TODO mrn remove this option:
-            R.id.action_scan -> {
-                startActivity(Intent(this, ScanTokenActivity::class.java))
-                return true
-            }
-            // TODO mrn remove this option, maybe:
-            R.id.action_add -> {
-                startActivity(Intent(this, AddActivity::class.java))
-                return true
-            }
-
-            R.id.action_import_json -> {
-                performFileSearch(READ_JSON_REQUEST_CODE)
-                return true
-            }
-
-            R.id.action_import_key_uri -> {
-                performFileSearch(READ_KEY_URI_REQUEST_CODE)
-                return true
-            }
-
-            R.id.action_export_json -> {
-                createFile("application/json", "freeotp-backup","json", WRITE_JSON_REQUEST_CODE)
-                return true
-            }
-
-            R.id.action_export_key_uri -> {
-                createFile("text/plain", "freeotp-backup","txt", WRITE_KEY_URI_REQUEST_CODE)
-                return true
-            }
-
+            // Commented some because they break the concept of blue totp at the moment:
+//            R.id.action_scan -> {
+//                startActivity(Intent(this, ScanTokenActivity::class.java))
+//                return true
+//            }
+//            R.id.action_add -> {
+//                startActivity(Intent(this, AddActivity::class.java))
+//                return true
+//            }
+//            R.id.action_import_json -> {
+//                performFileSearch(READ_JSON_REQUEST_CODE)
+//                return true
+//            }
+//            R.id.action_import_key_uri -> {
+//                performFileSearch(READ_KEY_URI_REQUEST_CODE)
+//                return true
+//            }
+//            R.id.action_export_json -> {
+//                createFile("application/json", "freeotp-backup","json", WRITE_JSON_REQUEST_CODE)
+//                return true
+//            }
+//            R.id.action_export_key_uri -> {
+//                createFile("text/plain", "freeotp-backup","txt", WRITE_KEY_URI_REQUEST_CODE)
+//                return true
+//            }
             R.id.use_dark_theme -> {
                 settings.darkMode = !settings.darkMode
                 if (settings.darkMode) {
@@ -405,27 +395,24 @@ class MainActivity : AppCompatActivity() {
                 recreate()
                 return true
             }
-
             R.id.copy_to_clipboard -> {
                 settings.copyToClipboard = !settings.copyToClipboard
                 item.isChecked = settings.copyToClipboard
                 refreshOptionMenu()
             }
-
-            R.id.require_authentication -> {
-                // Make sure we also verify authentication before turning on the settings
-
-                if (!settings.requireAuthentication) {
-                    viewModel.setAuthState(MainViewModel.AuthState.UNAUTHENTICATED)
-                } else {
-                    settings.requireAuthentication = false
-                    viewModel.setAuthState(MainViewModel.AuthState.AUTHENTICATED)
-                    refreshOptionMenu()
-                }
-
-                return true
-            }
-
+//            R.id.require_authentication -> {
+//                // Make sure we also verify authentication before turning on the settings
+//
+//                if (!settings.requireAuthentication) {
+//                    viewModel.setAuthState(MainViewModel.AuthState.UNAUTHENTICATED)
+//                } else {
+//                    settings.requireAuthentication = false
+//                    viewModel.setAuthState(MainViewModel.AuthState.AUTHENTICATED)
+//                    refreshOptionMenu()
+//                }
+//
+//                return true
+//            }
             R.id.action_about -> {
                 startActivity(Intent(this, AboutActivity::class.java))
                 return true
@@ -565,7 +552,7 @@ class MainActivity : AppCompatActivity() {
     private fun refreshOptionMenu() {
         this.menu?.findItem(R.id.use_dark_theme)?.isChecked = settings.darkMode
         this.menu?.findItem(R.id.copy_to_clipboard)?.isChecked = settings.copyToClipboard
-        this.menu?.findItem(R.id.require_authentication)?.isChecked = settings.requireAuthentication
+//        this.menu?.findItem(R.id.require_authentication)?.isChecked = settings.requireAuthentication
     }
 
     private fun verifyAuthentication() {

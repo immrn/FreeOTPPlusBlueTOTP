@@ -21,38 +21,38 @@
 
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item
-        android:id="@+id/action_scan"
-        android:icon="@drawable/qrcode"
-        android:title="@string/scan_qr_code" />
-    <item
-        android:id="@+id/action_add"
-        android:icon="@drawable/ic_action_new_account"
-        android:title="@string/add_token" />
-    <item
-        android:icon="@drawable/ic_import"
-        android:title="@string/import_text">
-        <menu>
-            <item
-                android:id="@+id/action_import_json"
-                android:title="@string/import_json_format" />
-            <item
-                android:id="@+id/action_import_key_uri"
-                android:title="@string/import_key_uri_format" />
-        </menu>
-    </item>
-    <item
-        android:icon="@drawable/ic_export"
-        android:title="@string/export_text">
-        <menu>
-            <item
-                android:id="@+id/action_export_json"
-                android:title="@string/export_json_format" />
-            <item
-                android:id="@+id/action_export_key_uri"
-                android:title="@string/export_key_uri_format" />
-        </menu>
-    </item>
+<!--    <item-->
+<!--        android:id="@+id/action_scan"-->
+<!--        android:icon="@drawable/qrcode"-->
+<!--        android:title="@string/scan_qr_code" />-->
+<!--    <item-->
+<!--        android:id="@+id/action_add"-->
+<!--        android:icon="@drawable/ic_action_new_account"-->
+<!--        android:title="@string/add_token" />-->
+<!--    <item-->
+<!--        android:icon="@drawable/ic_import"-->
+<!--        android:title="@string/import_text">-->
+<!--        <menu>-->
+<!--            <item-->
+<!--                android:id="@+id/action_import_json"-->
+<!--                android:title="@string/import_json_format" />-->
+<!--            <item-->
+<!--                android:id="@+id/action_import_key_uri"-->
+<!--                android:title="@string/import_key_uri_format" />-->
+<!--        </menu>-->
+<!--    </item>-->
+<!--    <item-->
+<!--        android:icon="@drawable/ic_export"-->
+<!--        android:title="@string/export_text">-->
+<!--        <menu>-->
+<!--            <item-->
+<!--                android:id="@+id/action_export_json"-->
+<!--                android:title="@string/export_json_format" />-->
+<!--            <item-->
+<!--                android:id="@+id/action_export_key_uri"-->
+<!--                android:title="@string/export_key_uri_format" />-->
+<!--        </menu>-->
+<!--    </item>-->
     <item
         android:id="@+id/use_dark_theme"
         android:title="@string/use_dark_theme"
@@ -61,10 +61,10 @@
         android:id="@+id/copy_to_clipboard"
         android:title="@string/copy_to_clipboard"
         android:checkable="true"/>
-    <item
-        android:id="@+id/require_authentication"
-        android:title="@string/require_authentication"
-        android:checkable="true"/>
+<!--    <item-->
+<!--        android:id="@+id/require_authentication"-->
+<!--        android:title="@string/require_authentication"-->
+<!--        android:checkable="true"/>-->
     <item
         android:id="@+id/action_about"
         android:icon="@android:drawable/ic_menu_info_details"
