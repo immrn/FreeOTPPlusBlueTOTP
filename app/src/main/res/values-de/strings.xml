@@ -84,4 +84,8 @@
     <string name="started_ble_service">Bluetooth-Funk aktiviert</string>
     <string name="disconnected">Verbindung mit Browser Extension getrennt.</string>
     <string name="connected">Verbunden mit Browser Extension.</string>
+
+    <string name="init_token_text_1">Geben Sie das Token in die Website ein, auf der Sie gerade die Zwei-Faktor-Authentisierung einrichten.</string>
+    <string name="init_token_ok_button">Fertig</string>
+    <string name="init_token_expires">Token läuft ab in </string>
 </resources>

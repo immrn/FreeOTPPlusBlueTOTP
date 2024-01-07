@@ -33,6 +33,10 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme">
         <activity
+            android:name=".ui.InitialTokenActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+        <activity
             android:name=".ui.ConnectExtensionActivity"
             android:exported="false" />
 
@@ -41,6 +45,7 @@
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="connectedDevice">
+
             <!-- android:process=":ServiceProcess"> -->
         </service>
 
@@ -49,6 +54,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -77,8 +83,10 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:host="totp"
                     android:scheme="otpauth" />

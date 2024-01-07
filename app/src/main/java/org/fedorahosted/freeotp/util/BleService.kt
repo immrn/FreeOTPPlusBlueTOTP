@@ -66,6 +66,8 @@ class BleService : Service () {
         private var mBluetoothGattServer: BluetoothGattServer? = null
 
         var extWaitsForQrScan: Boolean = false
+        var curr_setup_domain: String = ""
+        var curr_setup_username: String = ""
 
         @SuppressLint("MissingPermission")
         fun isConnectedWithDevice(): Boolean {
@@ -276,9 +278,11 @@ class BleService : Service () {
                     if (extWaitsForQrScan) {
                         scope.launch {
                             val token = otpTokenDatabase.otpTokenDao().getLatest().first() ?: return@launch
+                            curr_setup_domain = msg["domain"].toString()
+                            curr_setup_username = msg["username"].toString()
                             val newToken = token.copy(
-                                domain = msg["domain"].toString(),
-                                username = msg["username"].toString()
+                                domain = curr_setup_domain,
+                                username = curr_setup_username
                             )
 
                             otpTokenDatabase.otpTokenDao().update(newToken)
@@ -315,10 +319,8 @@ class BleService : Service () {
     }
 
     private fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith {
-        when (val value = this[it])
-        {
-            is JSONArray ->
-            {
+        when (val value = this[it]) {
+            is JSONArray -> {
                 val map = (0 until value.length()).associate { Pair(it.toString(), value[it]) }
                 JSONObject(map).toMap().values.toList()
             }

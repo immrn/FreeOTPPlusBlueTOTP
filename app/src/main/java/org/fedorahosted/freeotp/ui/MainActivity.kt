@@ -152,6 +152,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var scanTokenActivity = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            Log.i(TAG, "scan was successful")
+            startActivity(Intent(this, InitialTokenActivity::class.java))
+        }
+        // TODO else needed ?
+    }
+
     fun startService() {
         Log.i(TAG, "starting BleService")
         val serviceIntent = Intent(this, BleService::class.java)
@@ -277,7 +285,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.addTokenFab.setOnClickListener {
             if (BleService.isConnectedWithDevice() && BleService.extWaitsForQrScan) {
-                startActivity(Intent(this, ScanTokenActivity::class.java))
+                scanTokenActivity.launch(Intent(this, ScanTokenActivity::class.java))
             }
             else {
                 startActivity(Intent(this, ConnectExtensionActivity::class.java))
