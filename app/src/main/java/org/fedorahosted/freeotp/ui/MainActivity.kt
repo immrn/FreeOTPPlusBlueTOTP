@@ -37,7 +37,6 @@
 package org.fedorahosted.freeotp.ui
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityManager
 import android.bluetooth.BluetoothAdapter
@@ -49,6 +48,7 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.PackageManager.PERMISSION_DENIED
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.content.res.Configuration
 import android.graphics.Color
@@ -58,8 +58,6 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.view.WindowManager
-import android.view.animation.AlphaAnimation
 import android.widget.SearchView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -101,6 +99,8 @@ private var REQUIRED_BLE_PERMISSIONS =  if (Build.VERSION.SDK_INT >= Build.VERSI
     } else {
         arrayOf()
     }
+private val REQUEST_CODE_PERMISSIONS = 23
+private var REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.POST_NOTIFICATIONS)
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -196,13 +196,22 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(
             requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_BLE_PERMISSIONS) {
-            if (allBlePermissionsGranted()) {
-                activateBluetooth()
-            } else {
-                Toast.makeText(this, R.string.ble_permissions_denied_text, Toast.LENGTH_LONG).show()
+        when (requestCode) {
+            REQUEST_CODE_BLE_PERMISSIONS -> {
+                if (allBlePermissionsGranted()) {
+                    activateBluetooth()
+                } else {
+                    Toast.makeText(this, R.string.ble_permissions_denied_text, Toast.LENGTH_LONG).show()
+                }
+            }
+            REQUEST_CODE_PERMISSIONS -> {
+                Log.i(TAG, "grantResults = $grantResults")
+                if (grantResults.contains(PERMISSION_DENIED)) {
+                    Toast.makeText(this, R.string.permission_post_notification_denied, Toast.LENGTH_LONG).show()
+                }
             }
         }
+
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -224,6 +233,13 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityCompat.requestPermissions(
                     this, REQUIRED_BLE_PERMISSIONS, REQUEST_CODE_BLE_PERMISSIONS)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permissionStatus = ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS)
+            if (permissionStatus != PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+            }
         }
 
         onNewIntent(intent)
@@ -305,12 +321,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.started_ble_service, Toast.LENGTH_SHORT).show()
                 setBtButtonDrawable(enabled = true)
             }
-        }
-
-        // Don't permit screenshots since these might contain OTP codes unless explicitly
-        // launched with screenshot mode
-        if (intent.extras?.getBoolean(SCREENSHOT_MODE_EXTRA) != true) {
-            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         }
 
         // Show connection state:

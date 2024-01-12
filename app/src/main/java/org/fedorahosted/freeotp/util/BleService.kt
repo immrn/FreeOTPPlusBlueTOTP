@@ -1,12 +1,14 @@
 package org.fedorahosted.freeotp.util
 
-import android.R
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.PendingIntent.FLAG_IMMUTABLE
+import android.app.PendingIntent.FLAG_MUTABLE
+import android.app.PendingIntent.FLAG_ONE_SHOT
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -26,12 +28,16 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +55,7 @@ import org.json.JSONObject
 import java.util.Arrays
 import java.util.UUID
 import javax.inject.Inject
+import org.fedorahosted.freeotp.R
 
 
 private val TAG = "mrnBleService"
@@ -56,10 +63,18 @@ private val TAG = "mrnBleService"
 @AndroidEntryPoint
 class BleService : Service () {
     init { val instance = this }
+
+    private val CHANNEL_ID = "AdvertiseBleServiceChannel"
+    private val CHANNEL_ID_TOTP_REQ = "TotpRequestChannel"
     companion object {
         const val START_ADVERTISING_ACTION = "org.fedorahosted.freeotp.BLE_SERVICE_START_ADVERTISING"
         const val CONNECTED_ACTION = "org.fedorahosted.freeotp.BLE_SERVICE_CONNECTED"
         const val DISCONNECTED_ACTION = "org.fedorahosted.freeotp.BLE_SERVICE_DISCONNECTED"
+        const val ACTION_CONFIRM_TOTP_REQUEST = "org.fedorahosted.freeotp.CONFIRM_TOTP_REQUEST"
+        const val ACTION_DENY_TOTP_REQUEST = "org.fedorahosted.freeotp.DENY_TOTP_REQUEST"
+        const val EXTRA_NOTIFY_ID = "org.fedorahosted.freeotp.EXTRA_NOTIFY_ID"
+        const val EXTRA_DOMAIN = "org.fedorahosted.freeotp.EXTRA_DOMAIN"
+        const val EXTRA_USERNAME = "org.fedorahosted.freeotp.EXTRA_USERNAME"
         private var mBluetoothManager: BluetoothManager? = null
         private var mBleDevice: BluetoothDevice? = null
         private lateinit var mTxCharacteristic: BluetoothGattCharacteristic
@@ -94,6 +109,13 @@ class BleService : Service () {
         }
     }
 
+    // Notify when an extension asks for an totp: // TODO make both private
+    private lateinit var notificationManager: NotificationManager
+    private lateinit var foregroundNotifyManager: NotificationManager // for foreground service itself
+    private lateinit var notifyBuilder: NotificationCompat.Builder
+    private var notifyCounter: Int = 0
+    private var pendingIntentRequestCodeCounter: Int = 0
+
     private val mBleBroadcastReceiver: BleBroadcastReceiver = BleBroadcastReceiver()
     private var mBleServiceBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         @SuppressLint("MissingPermission")
@@ -105,6 +127,33 @@ class BleService : Service () {
                     shortenBtAdapterName()
                     mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
                 }
+                ACTION_CONFIRM_TOTP_REQUEST -> {
+                    val username = intent.getStringExtra(EXTRA_USERNAME)!!
+                    Log.i(TAG, "username received: $username")
+                    val domain = intent.getStringExtra(EXTRA_DOMAIN)!!
+                    Log.i(TAG, "domain received: $domain")
+                    val notifyId = intent.extras!!.getInt(EXTRA_NOTIFY_ID)
+                    notificationManager.cancel(notifyId)
+                    scope.launch {
+                        val token = otpTokenDatabase.otpTokenDao().getByDomainAndUsername(domain, username).first()
+                        if (token == null) {
+                            sendBle(mapOf(
+                                    "key" to "response_totp",
+                                    "totp" to "null"
+                            ))
+                            return@launch
+                        }
+                        val totp = tokenCodeUtil.generateTokenCode(token).currentCode!!
+                        sendBle(mapOf(
+                                "key" to "response_totp",
+                                "totp" to totp
+                        ))
+                    }
+                }
+                ACTION_DENY_TOTP_REQUEST -> {
+                    val notifyId = intent.extras!!.getInt(EXTRA_NOTIFY_ID)
+                    notificationManager.cancel(notifyId)
+                }
             }
         }
     }
@@ -115,7 +164,6 @@ class BleService : Service () {
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
 
-    private val CHANNEL_ID = "AdvertiseBleServiceChannel"
     private lateinit var mBluetoothLeAdvertiser: BluetoothLeAdvertiser
     private val mServiceUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f852")
     private val mTxCharUuid: UUID = UUID.fromString("2e076308-26cb-4a9c-a79a-e3ec22b3f853")
@@ -148,6 +196,7 @@ class BleService : Service () {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "BluetoothDevice DISCONNECTED: $device")
                 extWaitsForQrScan = false
+                // TODO cancel all? notifications here cancelAll()
                 val intent = Intent(DISCONNECTED_ACTION)
                 LocalBroadcastManager.getInstance(applicationContext()).sendBroadcast(intent)
                 mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback)
@@ -246,7 +295,7 @@ class BleService : Service () {
                     scope.launch{
                         Log.i(TAG, "shortening BT adapter name")
                         shortenBtAdapterName()
-                        delay(4000)
+                        delay(4000) // Wait for adapter to change the bt adapter name
                         Log.i(TAG, "shortened Bluetooth adapter name: ${mBluetoothManager?.adapter?.name}")
                         // calling startAdvertising() here with this (callback) to restart it automatically, ends in a recursive IDE error, so use broadcast receiver:
                         val advIntent = Intent(START_ADVERTISING_ACTION)
@@ -303,11 +352,60 @@ class BleService : Service () {
                             ))
                             return@launch
                         }
-                        val totp = tokenCodeUtil.generateTokenCode(token).currentCode!!
-                        sendBle(mapOf(
-                                "key" to "response_totp",
-                                "totp" to totp
-                        ))
+                        val confirmIntent = Intent(applicationContext, NotificationReceiver::class.java).apply {
+                            action = ACTION_CONFIRM_TOTP_REQUEST
+                            val extras = Bundle()
+                            Log.i(TAG, "set ID: $notifyCounter")
+                            Log.i(TAG, "set username: $username")
+                            Log.i(TAG, "set domain: $domain")
+                            extras.putInt(EXTRA_NOTIFY_ID, notifyCounter)
+                            extras.putString(EXTRA_USERNAME, username)
+                            extras.putString(EXTRA_DOMAIN, domain)
+                            putExtras(extras)
+                            Log.i(TAG, "this confirmIntent: $this")
+                            Log.i(TAG, "confirmIntent extras: ${this.extras}")
+                        }
+                        val confirmPendingIntent: PendingIntent =
+                                PendingIntent.getBroadcast(applicationContext, pendingIntentRequestCodeCounter, confirmIntent, FLAG_MUTABLE or FLAG_ONE_SHOT)
+                        pendingIntentRequestCodeCounter += 1
+                        val denyIntent = Intent(applicationContext, NotificationReceiver::class.java).apply {
+                            action = ACTION_DENY_TOTP_REQUEST
+                            putExtra(EXTRA_NOTIFY_ID, notifyCounter)
+                        }
+                        val denyPendingIntent: PendingIntent =
+                                PendingIntent.getBroadcast(applicationContext, pendingIntentRequestCodeCounter, denyIntent, FLAG_MUTABLE or FLAG_ONE_SHOT)
+                        pendingIntentRequestCodeCounter += 1
+                        val notifyIntent = Intent(applicationContext, MainActivity::class.java).apply {
+                            this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        }
+                        val notifyPendingIntent: PendingIntent = PendingIntent.getActivity(applicationContext, pendingIntentRequestCodeCounter, notifyIntent, FLAG_IMMUTABLE or FLAG_ONE_SHOT)
+                        pendingIntentRequestCodeCounter += 1
+                        val publicNotification = NotificationCompat.Builder(applicationContext, CHANNEL_ID_TOTP_REQ)
+                                .setSmallIcon(R.drawable.ic_launcher_foreground_large)
+                                .setContentTitle(getString(R.string.notify_totp_req_title_public) + " $domain?")
+                        notifyBuilder = notifyBuilder
+                                .setContentText(getString(R.string.notify_totp_req_text) + " " + domain)
+                                .clearActions()
+                                .addAction(R.drawable.bt_icon_enabled, getString(R.string.notify_totp_req_confim), confirmPendingIntent)
+                                .addAction(R.drawable.bt_icon_disabled, getString(R.string.notify_totp_req_deny), denyPendingIntent)
+                                .setContentIntent(notifyPendingIntent)
+                                .setPublicVersion(publicNotification.build())
+
+                        with (NotificationManagerCompat.from(applicationContext())) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                val permissionStatus = ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS)
+                                if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
+                                    this.notify(notifyCounter, notifyBuilder.build())
+                                    notifyCounter += 1
+                                }
+                            } else {
+                                this.notify(notifyCounter, notifyBuilder.build())
+                                notifyCounter += 1
+                            }
+                        }
+                        // NotificationReceiver will receive the intent (confirm, deny) and then
+                        // send a broadcast to the local broadcastReceiver here. It will send the
+                        // ble message containing the totp if the user confirmed the totp request.
                         return@launch
                     }
                 }
@@ -373,10 +471,24 @@ class BleService : Service () {
             val serviceChannel = NotificationChannel(
                     CHANNEL_ID,
                     "Foreground Service Channel",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_NONE
             )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(serviceChannel)
+            foregroundNotifyManager = getSystemService(NotificationManager::class.java)
+            foregroundNotifyManager.createNotificationChannel(serviceChannel)
+        }
+    }
+
+    private fun createTotpRequestNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = getString(R.string.app_name) + "blabla"
+            val descriptionText = "..."
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(CHANNEL_ID_TOTP_REQ, name, importance).apply {
+                description = descriptionText
+            }
+            // Register the channel with the system.
+            notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
         }
     }
 
@@ -388,26 +500,45 @@ class BleService : Service () {
     @SuppressLint("MissingPermission")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         instance = this
+
+        // Notification for being at foreground:
         val input = intent!!.getStringExtra("inputExtra")
         createNotificationChannel()
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this,
             0, notificationIntent, FLAG_IMMUTABLE)
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Foreground Service")
+            .setContentTitle(getString(R.string.notify_foreground))
             .setContentText(input)
-            .setSmallIcon(R.drawable.arrow_up_float)
+            .setSmallIcon(R.drawable.ic_launcher_foreground_whitened)
             .setContentIntent(pendingIntent)
+            .setSilent(true)
+            .setColor(Color.argb(255,0, 130, 252))
             .build()
+        startForeground(-1, notification)
 
-        startForeground(1, notification)
+        // notification for asking user to accept totp request:
+        createTotpRequestNotificationChannel()
+        notifyBuilder = NotificationCompat.Builder(this, CHANNEL_ID_TOTP_REQ)
+                .setSmallIcon(R.drawable.ic_launcher_foreground_whitened)
+                .setContentTitle(getString(R.string.notify_totp_req_title))
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setColor(Color.argb(255,0, 130, 252))
+
         initBleGattServer()
         mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
 
         // When the user enables or disables Bluetooth, we want to restart/stop advertising.
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-        registerReceiver(mBleBroadcastReceiver, intentFilter)
-        LocalBroadcastManager.getInstance(this).registerReceiver(mBleServiceBroadcastReceiver, IntentFilter(START_ADVERTISING_ACTION))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mBleBroadcastReceiver, intentFilter, RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(mBleBroadcastReceiver, intentFilter)
+        }
+        val localIntentFilter = IntentFilter(ACTION_CONFIRM_TOTP_REQUEST)
+        localIntentFilter.addAction(START_ADVERTISING_ACTION)
+        localIntentFilter.addAction(ACTION_DENY_TOTP_REQUEST)
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBleServiceBroadcastReceiver, localIntentFilter)
 
         return START_NOT_STICKY
     }

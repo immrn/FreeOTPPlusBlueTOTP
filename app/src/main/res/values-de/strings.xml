@@ -88,4 +88,13 @@
     <string name="init_token_text_1">Geben Sie das Token in die Website ein, auf der Sie gerade die Zwei-Faktor-Authentisierung einrichten.</string>
     <string name="init_token_ok_button">Fertig</string>
     <string name="init_token_expires">Token läuft ab in </string>
+
+    <string name="notify_foreground">Blue TOTP ist aktiv</string>
+    <string name="notify_totp_req_title">Authentisierungsanfrage</string>
+    <string name="notify_totp_req_title_public">Login bei </string>
+    <string name="notify_totp_req_text">für </string>
+    <string name="notify_totp_req_confim">Bestätigen</string>
+    <string name="notify_totp_req_deny">Ablehnen</string>
+
+    <string name="permission_post_notification_denied">Benachrichtigungen wurden deaktiviert, doch die App benötigt die Erlaubnis dafür.</string>
 </resources>
