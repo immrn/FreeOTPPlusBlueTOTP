@@ -24,7 +24,7 @@ class TokenLayout : MaterialCardView, View.OnClickListener, Runnable {
     private lateinit var mProgressInner: ProgressCircle
     private lateinit var mProgressOuter: ProgressCircle
     private lateinit var mImage: ImageView
-    private lateinit var mCode: TextView
+//    private lateinit var mCode: TextView
     private lateinit var mIssuer: TextView
     private lateinit var mLabel: TextView
     private lateinit var mMenu: ImageView
@@ -47,7 +47,7 @@ class TokenLayout : MaterialCardView, View.OnClickListener, Runnable {
         mProgressInner = findViewById<View>(R.id.progressInner) as ProgressCircle
         mProgressOuter = findViewById<View>(R.id.progressOuter) as ProgressCircle
         mImage = findViewById<View>(R.id.image) as ImageView
-        mCode = findViewById<View>(R.id.code) as TextView
+//        mCode = findViewById<View>(R.id.code) as TextView
         mIssuer = findViewById<View>(R.id.issuer) as TextView
         mLabel = findViewById<View>(R.id.label) as TextView
         mMenu = findViewById<View>(R.id.menu) as ImageView
@@ -83,9 +83,9 @@ class TokenLayout : MaterialCardView, View.OnClickListener, Runnable {
         mImage.setTokenImage(token)
 
         // Set the labels.
-        mLabel.text = token.label
+        mLabel.text = token.username
         mIssuer.text = token.issuer
-        mCode.text = mPlaceholder
+//        mCode.text = mPlaceholder
         if (mIssuer.text.isEmpty()) {
             mIssuer.text = token.label
             mLabel.visibility = View.GONE
@@ -130,7 +130,7 @@ class TokenLayout : MaterialCardView, View.OnClickListener, Runnable {
     override fun run() {
         // Get the current data
         val code = mCodes?.currentCode?: run {
-            mCode.text = mPlaceholder
+//            mCode.text = mPlaceholder
             mProgressInner.visibility = View.GONE
             mProgressOuter.visibility = View.GONE
             animate(mImage, R.anim.token_image_fadein, true)
@@ -152,7 +152,7 @@ class TokenLayout : MaterialCardView, View.OnClickListener, Runnable {
             isEnabled = System.currentTimeMillis() - mStartTime > 5000
 
         // Update the fields
-        mCode.text = code
+//        mCode.text = code
         mProgressInner.setProgress(currentProgress)
         if (mType != OtpTokenType.HOTP)
             mProgressOuter.setProgress(totalProgress)

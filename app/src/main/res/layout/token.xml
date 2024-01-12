@@ -19,61 +19,61 @@
    - limitations under the License.
    -->
 
-<org.fedorahosted.freeotp.token.TokenLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<org.fedorahosted.freeotp.token.TokenLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tool="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="@dimen/space_1"
+    android:layout_marginBottom="2dp"
     android:background="?android:selectableItemBackground">
+
     <ImageView
         android:id="@+id/image"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
+        android:layout_width="70dp"
+        android:layout_height="70dp"
         android:layout_gravity="start"
-        android:src="@drawable/logo"
-        android:scaleType="fitCenter"
+        android:background="@color/token_background"
         android:padding="16dp"
-        android:background="@color/token_background"/>
+        android:scaleType="fitCenter"
+        android:src="@drawable/logo" />
 
     <org.fedorahosted.freeotp.ui.ProgressCircle
         android:id="@+id/progressInner"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
+        android:layout_width="70dp"
+        android:layout_height="70dp"
         android:padding="28dp"
         app:hollow="false"
         app:max="1000" />
 
     <org.fedorahosted.freeotp.ui.ProgressCircle
         android:id="@+id/progressOuter"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
+        android:layout_width="70dp"
+        android:layout_height="70dp"
         android:padding="24dp"
         app:hollow="true"
         app:max="1000" />
 
-    <TextView
-        android:id="@+id/code"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginStart="96dp"
-        android:paddingLeft="8dp"
-        android:paddingRight="8dp"
-        android:gravity="start|center"
-        android:textSize="34sp"
-        android:textStyle="bold"
-        android:typeface="monospace"
-        tool:text="01234567" />
+    <!--    <TextView-->
+    <!--        android:id="@+id/code"-->
+    <!--        android:layout_width="match_parent"-->
+    <!--        android:layout_height="48dp"-->
+    <!--        android:layout_marginStart="96dp"-->
+    <!--        android:paddingLeft="8dp"-->
+    <!--        android:paddingRight="8dp"-->
+    <!--        android:gravity="start|center"-->
+    <!--        android:textSize="34sp"-->
+    <!--        android:textStyle="bold"-->
+    <!--        android:typeface="monospace"-->
+    <!--        tool:text="01234567" />-->
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginStart="96dp"
-        android:layout_marginTop="48dp"
+        android:layout_height="70dp"
+        android:layout_marginStart="70dp"
+        android:orientation="vertical"
         android:paddingStart="8dp"
-        android:paddingEnd="32dp"
-        android:orientation="vertical">
+        android:paddingEnd="32dp">
+
         <include layout="@layout/titles" />
     </LinearLayout>
 
@@ -82,10 +82,10 @@
         android:layout_width="32dp"
         android:layout_height="48dp"
         android:layout_gravity="bottom|end"
+        android:layout_marginEnd="@dimen/space_2"
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
-        android:layout_marginEnd="@dimen/space_2"
         android:src="@drawable/menu"
-        app:tint="@color/overflow_menu"
-        android:tintMode="add" />
+        android:tintMode="add"
+        app:tint="@color/overflow_menu" />
 </org.fedorahosted.freeotp.token.TokenLayout>
