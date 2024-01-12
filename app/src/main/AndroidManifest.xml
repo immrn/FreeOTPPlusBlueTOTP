@@ -36,9 +36,10 @@
         <receiver
             android:name=".util.NotificationReceiver"
             android:enabled="true"
-            android:exported="true">
-        </receiver>
-
+            android:exported="true" />
+        <activity
+            android:name=".ui.TotpRequestActivity"
+            android:exported="false" />
         <activity
             android:name=".ui.InitialTokenActivity"
             android:exported="false"

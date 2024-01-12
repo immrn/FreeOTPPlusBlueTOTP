@@ -108,11 +108,18 @@
     <string name="init_token_expires">Token expires in </string>
 
     <string name="notify_foreground">Blue TOTP is active</string>
-    <string name="notify_totp_req_title">Authentication request</string>
+    <string name="notify_totp_req_title">Authentication Request</string>
     <string name="notify_totp_req_title_public">Login at</string>
     <string name="notify_totp_req_text">for</string>
     <string name="notify_totp_req_confim">Confirm</string>
     <string name="notify_totp_req_deny">Deny</string>
+
+    <string name="totp_req_title">Authentication Request</string>
+    <string name="totp_req_text">Are you trying to login?</string>
+    <string name="totp_req_domain">Website:</string>
+    <string name="totp_req_username">Username:</string>
+    <string name="totp_req_confrim">Yes</string>
+    <string name="totp_req_deny">No</string>
 
     <string name="permission_post_notification_denied">You denied the notification permission but the app needs it.</string>
 </resources>

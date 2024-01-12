@@ -96,5 +96,12 @@
     <string name="notify_totp_req_confim">Bestätigen</string>
     <string name="notify_totp_req_deny">Ablehnen</string>
 
+    <string name="totp_req_title">Authentisierungsanfrage</string>
+    <string name="totp_req_text">Melden Sie sich gerade an?</string>
+    <string name="totp_req_domain">Website:</string>
+    <string name="totp_req_username">Nutzername:</string>
+    <string name="totp_req_confrim">Ja</string>
+    <string name="totp_req_deny">Nein</string>
+
     <string name="permission_post_notification_denied">Benachrichtigungen wurden deaktiviert, doch die App benötigt die Erlaubnis dafür.</string>
 </resources>

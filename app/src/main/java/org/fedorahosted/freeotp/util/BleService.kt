@@ -56,6 +56,7 @@ import java.util.Arrays
 import java.util.UUID
 import javax.inject.Inject
 import org.fedorahosted.freeotp.R
+import org.fedorahosted.freeotp.ui.TotpRequestActivity
 
 
 private val TAG = "mrnBleService"
@@ -375,8 +376,13 @@ class BleService : Service () {
                         val denyPendingIntent: PendingIntent =
                                 PendingIntent.getBroadcast(applicationContext, pendingIntentRequestCodeCounter, denyIntent, FLAG_MUTABLE or FLAG_ONE_SHOT)
                         pendingIntentRequestCodeCounter += 1
-                        val notifyIntent = Intent(applicationContext, MainActivity::class.java).apply {
+                        val notifyIntent = Intent(applicationContext, TotpRequestActivity::class.java).apply {
                             this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            val extras = Bundle()
+                            extras.putInt(EXTRA_NOTIFY_ID, notifyCounter)
+                            extras.putString(EXTRA_USERNAME, username)
+                            extras.putString(EXTRA_DOMAIN, domain)
+                            putExtras(extras)
                         }
                         val notifyPendingIntent: PendingIntent = PendingIntent.getActivity(applicationContext, pendingIntentRequestCodeCounter, notifyIntent, FLAG_IMMUTABLE or FLAG_ONE_SHOT)
                         pendingIntentRequestCodeCounter += 1
