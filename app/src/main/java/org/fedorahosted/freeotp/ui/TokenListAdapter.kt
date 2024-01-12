@@ -42,27 +42,28 @@ class TokenListAdapter @Inject constructor(@ActivityContext private val context:
         val currentToken = currentList[position]
         holder.bind(currentToken)
         holder.tokenLayout.setOnClickListener { v ->
-            activity.lifecycleScope.launch {
-                // Fetch the token again to refresh the HOTP token. This is needed because
-                // incrementCounter will not refresh the token after HOTP update
-                otpTokenDatabase.otpTokenDao().get(currentToken.id).first() ?.let { token ->
-                    val codes = tokenCodeUtil.generateTokenCode(token)
-
-                    if (token.tokenType == OtpTokenType.HOTP) {
-                        otpTokenDatabase.otpTokenDao().incrementCounter(token.id)
-                    }
-
-                    if (settings.copyToClipboard) {
-                        // Copy code to clipboard.
-                        clipboardManager.setPrimaryClip(ClipData.newPlainText(null, codes.currentCode))
-                        Snackbar.make(v, R.string.code_copied, Snackbar.LENGTH_SHORT).show()
-                    }
-
-                    tokenCodes[token.id] = codes
-
-                    (v as TokenLayout).start(token.tokenType, codes, true)
-                }
-            }
+            // TODO we can rm this:
+//            activity.lifecycleScope.launch {
+//                // Fetch the token again to refresh the HOTP token. This is needed because
+//                // incrementCounter will not refresh the token after HOTP update
+//                otpTokenDatabase.otpTokenDao().get(currentToken.id).first() ?.let { token ->
+//                    val codes = tokenCodeUtil.generateTokenCode(token)
+//
+//                    if (token.tokenType == OtpTokenType.HOTP) {
+//                        otpTokenDatabase.otpTokenDao().incrementCounter(token.id)
+//                    }
+//
+//                    if (settings.copyToClipboard) {
+//                        // Copy code to clipboard.
+//                        clipboardManager.setPrimaryClip(ClipData.newPlainText(null, codes.currentCode))
+//                        Snackbar.make(v, R.string.code_copied, Snackbar.LENGTH_SHORT).show()
+//                    }
+//
+//                    tokenCodes[token.id] = codes
+//
+//                    (v as TokenLayout).start(token.tokenType, codes, true)
+//                }
+//            }
         }
     }
 }

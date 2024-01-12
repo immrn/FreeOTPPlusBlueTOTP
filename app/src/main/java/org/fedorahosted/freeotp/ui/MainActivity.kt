@@ -155,7 +155,12 @@ class MainActivity : AppCompatActivity() {
     private var scanTokenActivity = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             Log.i(TAG, "scan was successful")
-            startActivity(Intent(this, InitialTokenActivity::class.java))
+            val i = Intent(this, InitialTokenActivity::class.java).apply{
+                action = InitialTokenActivity.ACTION_SETUP
+                putExtra(InitialTokenActivity.EXTRA_DOMAIN, BleService.curr_setup_domain)
+                putExtra(InitialTokenActivity.EXTRA_USERNAME, BleService.curr_setup_username)
+            }
+            startActivity(i)
         }
         // TODO else needed ?
     }

@@ -40,4 +40,10 @@
         android:icon="@android:drawable/ic_menu_share"
         android:title="@string/share_qr_code"
         />
+
+    <item
+        android:id="@+id/action_show"
+        android:icon="@android:drawable/ic_menu_share"
+        android:title="@string/show_token"
+        />
 </menu>

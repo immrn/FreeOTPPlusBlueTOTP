@@ -72,6 +72,7 @@
     <string name="fail_to_add_image">Fail to add image</string>
     <string name="launch_file_browser_failure">Unable to launch system\'s file browser. It is likely an OS issue.</string>
     <string name="share_qr_code">Share QR Code</string>
+    <string name="show_token">Show Token</string>
     <string name="screenshot_mode">Screenshot mode</string>
     <string name="launch_with_screenshot_enabled">Launch with screenshot enabled</string>
     <string name="token_details">Token details</string>
@@ -104,6 +105,7 @@
 
     <string name="init_token_text_1">Enter the token into the website where you are setting up two factor authentication.</string>
     <string name="init_token_text_2">Token</string>
+    <string name="init_token_warning">Check if the domain of your current website is identical to the following:</string>
     <string name="init_token_ok_button">Finish</string>
     <string name="init_token_expires">Token expires in </string>
 

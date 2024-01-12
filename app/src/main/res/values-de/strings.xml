@@ -61,6 +61,7 @@
     <string name="fail_to_add_image">Fehler beim hinzufügen des Bildes</string>
     <string name="launch_file_browser_failure">Der Dateibrowser konnte nicht gestartet werden. Wahrscheinlich ist es ein Problem des Betriebssystems.</string>
     <string name="share_qr_code">QR-Code teilen</string>
+    <string name="show_token">Token anzeigen</string>
     <string name="screenshot_mode">Screenshot-Modus</string>
     <string name="launch_with_screenshot_enabled">Starte mit aktiviertem Screenshot</string>
     <string name="token_details">Token-Details</string>
@@ -86,6 +87,7 @@
     <string name="connected">Verbunden mit Browser Extension.</string>
 
     <string name="init_token_text_1">Geben Sie das Token in die Website ein, auf der Sie gerade die Zwei-Faktor-Authentisierung einrichten.</string>
+    <string name="init_token_warning">Prüfen Sie, ob die Domain Ihrer geöffneten Website identisch zur folgenden ist:</string>
     <string name="init_token_ok_button">Fertig</string>
     <string name="init_token_expires">Token läuft ab in </string>
 

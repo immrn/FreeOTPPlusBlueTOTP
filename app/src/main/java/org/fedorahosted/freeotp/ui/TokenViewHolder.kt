@@ -41,6 +41,13 @@ class TokenViewHolder(private val activity: Activity,
                 i.putExtra(EditActivity.EXTRA_TOKEN_ID, token.id)
                 activity.startActivity(i)
             }
+            R.id.action_show -> {
+                val i = Intent(tokenLayout.context, InitialTokenActivity::class.java).apply{
+                    action = InitialTokenActivity.ACTION_SHOW_WITH_WARNING
+                    putExtra(InitialTokenActivity.EXTRA_TOKEN_ID, token.id)
+                }
+                activity.startActivity(i)
+            }
         }
         true
     }
