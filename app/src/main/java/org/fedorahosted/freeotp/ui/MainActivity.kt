@@ -155,10 +155,12 @@ class MainActivity : AppCompatActivity() {
     private var scanTokenActivity = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             Log.i(TAG, "scan was successful")
-            val i = Intent(this, InitialTokenActivity::class.java).apply{
-                action = InitialTokenActivity.ACTION_SETUP
-                putExtra(InitialTokenActivity.EXTRA_DOMAIN, BleService.curr_setup_domain)
-                putExtra(InitialTokenActivity.EXTRA_USERNAME, BleService.curr_setup_username)
+            Log.i(TAG, "BleService.currSetupDomain: ${BleService.currSetupDomain}")
+            Log.i(TAG, "BleService.currSetupUsername: ${BleService.currSetupUsername}")
+            val i = Intent(this, ShowTokenActivity::class.java).apply{
+                action = ShowTokenActivity.ACTION_SETUP
+                putExtra(ShowTokenActivity.EXTRA_DOMAIN, BleService.currSetupDomain)
+                putExtra(ShowTokenActivity.EXTRA_USERNAME, BleService.currSetupUsername)
             }
             startActivity(i)
         }
@@ -306,7 +308,8 @@ class MainActivity : AppCompatActivity() {
 
         binding.addTokenFab.setOnClickListener {
             if (BleService.isConnectedWithDevice() && BleService.extWaitsForQrScan) {
-                scanTokenActivity.launch(Intent(this, ScanTokenActivity::class.java))
+//                scanTokenActivity.launch(Intent(this, ScanTokenActivity::class.java))
+                startActivity(Intent(this, ScanTokenActivity::class.java))
             }
             else {
                 startActivity(Intent(this, ConnectExtensionActivity::class.java))
@@ -629,7 +632,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        private val TAG = MainActivity::class.java.simpleName
         const val READ_JSON_REQUEST_CODE = 42
         const val WRITE_JSON_REQUEST_CODE = 43
         const val READ_KEY_URI_REQUEST_CODE = 44

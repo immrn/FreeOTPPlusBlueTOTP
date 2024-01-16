@@ -76,6 +76,7 @@
         android:layout_marginStart="8dp"
         android:layout_marginTop="16dp"
         android:indeterminate="false"
+        android:scaleX="-1"
         android:max="1000"
         android:progress="750"
         app:indicatorSize="55dp"

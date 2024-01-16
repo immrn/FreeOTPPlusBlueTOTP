@@ -14,7 +14,10 @@ class NotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             BleService.ACTION_CONFIRM_TOTP_REQUEST -> {
-                Log.i(TAG, "received action confirm totp request")
+                Log.d(TAG, "received action confirm totp request")
+                Log.d(TAG, "Notification ID: ${intent.extras!!.getInt(BleService.EXTRA_NOTIFY_ID)}")
+                Log.d(TAG, "Username: ${intent.extras!!.getString(BleService.EXTRA_USERNAME)}")
+                Log.d(TAG, "Domain: ${intent.extras!!.getString(BleService.EXTRA_DOMAIN)}")
                 val confirmTotpReqIntent = Intent(BleService.ACTION_CONFIRM_TOTP_REQUEST).apply {
                     val extras = Bundle()
                     extras.putString(BleService.EXTRA_USERNAME, intent.extras!!.getString(BleService.EXTRA_USERNAME))

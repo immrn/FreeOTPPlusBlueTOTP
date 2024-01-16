@@ -7,14 +7,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -23,19 +18,17 @@ import org.fedorahosted.freeotp.R
 import org.fedorahosted.freeotp.data.OtpToken
 import org.fedorahosted.freeotp.data.OtpTokenDatabase
 import org.fedorahosted.freeotp.data.OtpTokenType
-import org.fedorahosted.freeotp.data.legacy.Token
 import org.fedorahosted.freeotp.data.legacy.TokenCode
 import org.fedorahosted.freeotp.data.util.TokenCodeUtil
-import org.fedorahosted.freeotp.databinding.InitialTokenBinding
+import org.fedorahosted.freeotp.databinding.ShowTokenBinding
 import org.fedorahosted.freeotp.util.BleService
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.milliseconds
 
 
-private val TAG = "mrnInitialTokenActivity"
+private val TAG = "mrnShowTokenActivity"
 
 @AndroidEntryPoint
-class InitialTokenActivity : ComponentActivity() {
+class ShowTokenActivity : ComponentActivity() {
     @Inject lateinit var tokenCodeUtil: TokenCodeUtil
     @Inject lateinit var otpTokenDatabase: OtpTokenDatabase
 
@@ -47,7 +40,7 @@ class InitialTokenActivity : ComponentActivity() {
         const val EXTRA_USERNAME = "org.fedorahosted.freeotp.EXTRA_USERNAME"
     }
 
-    private lateinit var binding: InitialTokenBinding
+    private lateinit var binding: ShowTokenBinding
     private lateinit var clipboardManager: ClipboardManager
     private var domain: String = ""
     private var username: String = ""
@@ -55,14 +48,19 @@ class InitialTokenActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = InitialTokenBinding.inflate(layoutInflater)
+        binding = ShowTokenBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // TODO add a copy button that runs this aswell:
+        // TODO add a copy button that runs this as well:
         clipboardManager = this.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         binding.inittoken.setOnClickListener{
             clipboardManager.setPrimaryClip(ClipData.newPlainText(null, binding.inittoken.text))
             Snackbar.make(binding.inittoken, R.string.code_copied, Snackbar.LENGTH_SHORT).show()
+        }
+
+        Log.i(TAG, "intent: ${intent}")
+        for (e in intent.extras!!.keySet()) {
+            Log.i(TAG, "$e: ${intent.extras!!.get(e)}")
         }
 
         // Determine source to identify the token:
@@ -72,10 +70,11 @@ class InitialTokenActivity : ComponentActivity() {
             domain = intent.extras!!.getString(EXTRA_DOMAIN)!!
             username = intent.extras!!.getString(EXTRA_USERNAME)!!
         }
+        Log.i(TAG, "domain: $domain; username: $username; tokenId: $tokenId")
 
         lifecycleScope.launch {
-            Log.i(TAG, "curr domain: ${domain}")
-            Log.i(TAG, "curr username: ${username}")
+            Log.i(TAG, "curr domain: $domain")
+            Log.i(TAG, "curr username: $username")
 
             val token: OtpToken? = if (tokenId == null) {
                 otpTokenDatabase.otpTokenDao().getByDomainAndUsername(domain, username).first()
@@ -116,8 +115,7 @@ class InitialTokenActivity : ComponentActivity() {
                     if (totps != null) {
                         val remainingSec = 30 - (System.currentTimeMillis() / 1000).toLong() % 30
                         binding.initTokenSeconds.text = remainingSec.toString()
-                        binding.initTokenProgress.progress = 1000 - totps!!.currentProgress
-                        Log.i(TAG, "progress")
+                        binding.initTokenProgress.progress = totps!!.currentProgress
                         delay(50)
                     }
                 }
@@ -126,6 +124,9 @@ class InitialTokenActivity : ComponentActivity() {
 
         binding.okButton.setOnClickListener{
             startActivity(Intent(applicationContext, MainActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
+            if (intent.action == ACTION_SETUP) {
+                BleService.sendBle(mapOf("key" to "setup_complete"))
+            }
         }
     }
 }

@@ -36,6 +36,8 @@ import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationCompat.DEFAULT_SOUND
+import androidx.core.app.NotificationCompat.DEFAULT_VIBRATE
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -56,6 +58,7 @@ import java.util.Arrays
 import java.util.UUID
 import javax.inject.Inject
 import org.fedorahosted.freeotp.R
+import org.fedorahosted.freeotp.ui.ShowTokenActivity
 import org.fedorahosted.freeotp.ui.TotpRequestActivity
 
 
@@ -73,6 +76,7 @@ class BleService : Service () {
         const val DISCONNECTED_ACTION = "org.fedorahosted.freeotp.BLE_SERVICE_DISCONNECTED"
         const val ACTION_CONFIRM_TOTP_REQUEST = "org.fedorahosted.freeotp.CONFIRM_TOTP_REQUEST"
         const val ACTION_DENY_TOTP_REQUEST = "org.fedorahosted.freeotp.DENY_TOTP_REQUEST"
+        const val ACTION_RECEIVED_SETUP_DATA = "org.fedorahosted.freeotp.RECEIVED_SETUP_DATA"
         const val EXTRA_NOTIFY_ID = "org.fedorahosted.freeotp.EXTRA_NOTIFY_ID"
         const val EXTRA_DOMAIN = "org.fedorahosted.freeotp.EXTRA_DOMAIN"
         const val EXTRA_USERNAME = "org.fedorahosted.freeotp.EXTRA_USERNAME"
@@ -82,8 +86,8 @@ class BleService : Service () {
         private var mBluetoothGattServer: BluetoothGattServer? = null
 
         var extWaitsForQrScan: Boolean = false
-        var curr_setup_domain: String = ""
-        var curr_setup_username: String = ""
+        var currSetupDomain: String = ""
+        var currSetupUsername: String = ""
 
         @SuppressLint("MissingPermission")
         fun isConnectedWithDevice(): Boolean {
@@ -129,11 +133,12 @@ class BleService : Service () {
                     mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
                 }
                 ACTION_CONFIRM_TOTP_REQUEST -> {
+                    val notifyId = intent.extras!!.getInt(EXTRA_NOTIFY_ID)
+                    Log.d(TAG, "Notification ID: ${intent.extras!!.getInt(EXTRA_NOTIFY_ID)}")
                     val username = intent.getStringExtra(EXTRA_USERNAME)!!
                     Log.i(TAG, "username received: $username")
                     val domain = intent.getStringExtra(EXTRA_DOMAIN)!!
                     Log.i(TAG, "domain received: $domain")
-                    val notifyId = intent.extras!!.getInt(EXTRA_NOTIFY_ID)
                     notificationManager.cancel(notifyId)
                     scope.launch {
                         val token = otpTokenDatabase.otpTokenDao().getByDomainAndUsername(domain, username).first()
@@ -231,10 +236,7 @@ class BleService : Service () {
             if (characteristic != null && characteristic.uuid == mRxCharUuid) {
                 handleIncomingMessage(strValue)
                 if (responseNeeded) {
-                    Log.i(TAG, "responded with GATT_SUCCESS and $strValue")
                     mBluetoothGattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, strValue.toByteArray(Charsets.UTF_8))
-                } else {
-                    Log.i(TAG, "no response needed")
                 }
             } else {
                 if (responseNeeded) {
@@ -316,7 +318,7 @@ class BleService : Service () {
         val msg: Map<String, *>
         try {
             msg = JSONObject(message).toMap()
-            Log.i(TAG, "parsed to map: $msg")
+            Log.d(TAG, "parsed to map: $msg")
             when (msg["key"]) {
                 "await_qr_scan" -> {
                     extWaitsForQrScan = true
@@ -326,17 +328,24 @@ class BleService : Service () {
                 }
                 "response_setup_domain_username" -> {
                     if (extWaitsForQrScan) {
+                        currSetupDomain = msg["domain"].toString()
+                        currSetupUsername = msg["username"].toString()
+                        Log.i(TAG, "set BleService.currSetupDomain: ${currSetupDomain}")
+                        Log.i(TAG, "set BleService.currSetupUsername: ${currSetupUsername}")
                         scope.launch {
                             val token = otpTokenDatabase.otpTokenDao().getLatest().first() ?: return@launch
-                            curr_setup_domain = msg["domain"].toString()
-                            curr_setup_username = msg["username"].toString()
                             val newToken = token.copy(
-                                domain = curr_setup_domain,
-                                username = curr_setup_username
+                                domain = currSetupDomain,
+                                username = currSetupUsername
                             )
-
                             otpTokenDatabase.otpTokenDao().update(newToken)
-                            sendBle(mapOf("key" to "setup_complete"))
+                            // User sees ScanTokenActivity now, we inform it, that we received the setup data (domain and username):
+                            val i = Intent(applicationContext, CommonReceiver::class.java).apply{
+                                action = ACTION_RECEIVED_SETUP_DATA
+                                putExtra(ShowTokenActivity.EXTRA_DOMAIN, currSetupDomain)
+                                putExtra(ShowTokenActivity.EXTRA_USERNAME, currSetupUsername)
+                            }
+                            sendBroadcast(i)
                             return@launch
                         }
                     }
@@ -353,9 +362,14 @@ class BleService : Service () {
                             ))
                             return@launch
                         }
+
+                        // We have a token, so inform extension that user needs to confim the totp request
+                        sendBle(mapOf("key" to "response_totp_await_user_confirm"))
+
                         val confirmIntent = Intent(applicationContext, NotificationReceiver::class.java).apply {
                             action = ACTION_CONFIRM_TOTP_REQUEST
                             val extras = Bundle()
+                            Log.d(TAG, "Building confirm intent")
                             Log.i(TAG, "set ID: $notifyCounter")
                             Log.i(TAG, "set username: $username")
                             Log.i(TAG, "set domain: $domain")
@@ -526,10 +540,11 @@ class BleService : Service () {
         // notification for asking user to accept totp request:
         createTotpRequestNotificationChannel()
         notifyBuilder = NotificationCompat.Builder(this, CHANNEL_ID_TOTP_REQ)
-                .setSmallIcon(R.drawable.ic_launcher_foreground_whitened)
-                .setContentTitle(getString(R.string.notify_totp_req_title))
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setColor(Color.argb(255,0, 130, 252))
+            .setSmallIcon(R.drawable.ic_launcher_foreground_whitened)
+            .setContentTitle(getString(R.string.notify_totp_req_title))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setColor(Color.argb(255,0, 130, 252))
+            .setDefaults(DEFAULT_SOUND or DEFAULT_VIBRATE)
 
         initBleGattServer()
         mBluetoothLeAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback)
@@ -541,8 +556,8 @@ class BleService : Service () {
         } else {
             registerReceiver(mBleBroadcastReceiver, intentFilter)
         }
-        val localIntentFilter = IntentFilter(ACTION_CONFIRM_TOTP_REQUEST)
-        localIntentFilter.addAction(START_ADVERTISING_ACTION)
+        val localIntentFilter = IntentFilter(START_ADVERTISING_ACTION)
+        localIntentFilter.addAction(ACTION_CONFIRM_TOTP_REQUEST)
         localIntentFilter.addAction(ACTION_DENY_TOTP_REQUEST)
         LocalBroadcastManager.getInstance(this).registerReceiver(mBleServiceBroadcastReceiver, localIntentFilter)
 
