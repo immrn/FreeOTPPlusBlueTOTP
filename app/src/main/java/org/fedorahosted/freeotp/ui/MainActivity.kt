@@ -62,6 +62,7 @@ import android.widget.SearchView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.biometric.BiometricManager
@@ -93,14 +94,22 @@ import kotlin.math.max
 
 
 private val TAG = "mrnMainActivity"
-private val REQUEST_CODE_BLE_PERMISSIONS = 11
-private var REQUIRED_BLE_PERMISSIONS =  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE)
+private val REQUEST_CODE_PERMISSIONS = 11
+private var REQUIRED_PERMISSIONS =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE
+        )
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE,
+            Manifest.permission.POST_NOTIFICATIONS
+        )
     } else {
         arrayOf()
     }
-private val REQUEST_CODE_PERMISSIONS = 23
-private var REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.POST_NOTIFICATIONS)
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -152,21 +161,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private var scanTokenActivity = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            Log.i(TAG, "scan was successful")
-            Log.i(TAG, "BleService.currSetupDomain: ${BleService.currSetupDomain}")
-            Log.i(TAG, "BleService.currSetupUsername: ${BleService.currSetupUsername}")
-            val i = Intent(this, ShowTokenActivity::class.java).apply{
-                action = ShowTokenActivity.ACTION_SETUP
-                putExtra(ShowTokenActivity.EXTRA_DOMAIN, BleService.currSetupDomain)
-                putExtra(ShowTokenActivity.EXTRA_USERNAME, BleService.currSetupUsername)
-            }
-            startActivity(i)
-        }
-        // TODO else needed ?
-    }
-
     fun startService() {
         Log.i(TAG, "starting BleService")
         val serviceIntent = Intent(this, BleService::class.java)
@@ -191,34 +185,42 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
-    private fun allBlePermissionsGranted(): Boolean {
-        for (permission in REQUIRED_BLE_PERMISSIONS) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PERMISSION_GRANTED) {
-                return false
-            }
+    private fun permissionBtConnectGranted(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PERMISSION_GRANTED
+        } else {
+            true // sdk version < S doesn't need the permission, so everything is good
         }
-        return true
+    }
+    private fun permissionBtAdvertiseGranted(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE) == PERMISSION_GRANTED
+        } else {
+            true // sdk version < S doesn't need the permission, so everything is good
+        }
+    }
+    private fun permissionPostNotificationGranted(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PERMISSION_GRANTED
+        } else {
+            true // sdk version < TIRAMISU doesn't need the permission, so everything is good
+        }
     }
 
     override fun onRequestPermissionsResult(
             requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            REQUEST_CODE_BLE_PERMISSIONS -> {
-                if (allBlePermissionsGranted()) {
-                    activateBluetooth()
-                } else {
-                    Toast.makeText(this, R.string.ble_permissions_denied_text, Toast.LENGTH_LONG).show()
-                }
+        if (requestCode == REQUEST_CODE_PERMISSIONS) {
+            if (!permissionBtConnectGranted() || !permissionBtAdvertiseGranted()) {
+                Toast.makeText(this, R.string.ble_permissions_denied_text, Toast.LENGTH_LONG).show()
+            } else if (permissionBtConnectGranted() && permissionBtAdvertiseGranted()) {
+                activateBluetooth()
             }
-            REQUEST_CODE_PERMISSIONS -> {
-                Log.i(TAG, "grantResults = $grantResults")
-                if (grantResults.contains(PERMISSION_DENIED)) {
-                    Toast.makeText(this, R.string.permission_post_notification_denied, Toast.LENGTH_LONG).show()
-                }
+
+            if (!permissionPostNotificationGranted()) {
+                Toast.makeText(this, R.string.notify_permissions_denied, Toast.LENGTH_LONG).show()
             }
         }
-
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -234,19 +236,12 @@ class MainActivity : AppCompatActivity() {
             finish()
         }
 
-        // Request Bluetooth permissions:
-        if (allBlePermissionsGranted()) {
+        // Check permissions and respectively request:
+        if (permissionBtConnectGranted() && permissionBtAdvertiseGranted()) {
             activateBluetooth()
-        } else {
-            ActivityCompat.requestPermissions(
-                    this, REQUIRED_BLE_PERMISSIONS, REQUEST_CODE_BLE_PERMISSIONS)
         }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val permissionStatus = ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS)
-            if (permissionStatus != PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
-            }
+        if (!permissionBtConnectGranted() || !permissionBtConnectGranted() || !permissionPostNotificationGranted()) {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
 
         onNewIntent(intent)
@@ -308,7 +303,6 @@ class MainActivity : AppCompatActivity() {
 
         binding.addTokenFab.setOnClickListener {
             if (BleService.isConnectedWithDevice() && BleService.extWaitsForQrScan) {
-//                scanTokenActivity.launch(Intent(this, ScanTokenActivity::class.java))
                 startActivity(Intent(this, ScanTokenActivity::class.java))
             }
             else {

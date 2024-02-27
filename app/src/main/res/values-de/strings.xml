@@ -80,7 +80,8 @@
     <string name="ext_step_5">Öffnen Sie die Blue TOTP Extension und starten Sie die Einrichtung.</string>
 
     <string name="cant_create_new_profile_text">Neues Profil kann nicht angelegt werden.</string>
-    <string name="ble_permissions_denied_text">Sie haben die notwendigen Bluetooth-Berechtigungen abgelehnt.</string>
+    <string name="ble_permissions_denied_text">Diese App benötigt Bluetooth-Berechtigungen, um sich mit Ihrem Computer zu verbinden!</string>
+    <string name="notify_permissions_denied">Diese App benötigt die Benachrichtigungs-Berechtigung, damit Sie Anfragen bestätigen können!</string>
     <string name="stopped_ble_service">Bluetooth-Funk deaktiviert (spart Strom)</string>
     <string name="started_ble_service">Bluetooth-Funk aktiviert</string>
     <string name="disconnected">Verbindung mit Browser Extension getrennt.</string>
@@ -98,12 +99,10 @@
     <string name="notify_totp_req_confim">Bestätigen</string>
     <string name="notify_totp_req_deny">Ablehnen</string>
 
-    <string name="totp_req_title">Authentisierungsanfrage</string>
+    <string name="totp_req_title">Authentisierungs\u00ADanfrage</string>
     <string name="totp_req_text">Melden Sie sich gerade an?</string>
     <string name="totp_req_domain">Website:</string>
     <string name="totp_req_username">Nutzername:</string>
     <string name="totp_req_confrim">Ja</string>
     <string name="totp_req_deny">Nein</string>
-
-    <string name="permission_post_notification_denied">Benachrichtigungen wurden deaktiviert, doch die App benötigt die Erlaubnis dafür.</string>
 </resources>

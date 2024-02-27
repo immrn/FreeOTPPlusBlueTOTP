@@ -328,6 +328,7 @@ class BleService : Service () {
                 }
                 "response_setup_domain_username" -> {
                     if (extWaitsForQrScan) {
+                        extWaitsForQrScan = false // finished scan
                         currSetupDomain = msg["domain"].toString()
                         currSetupUsername = msg["username"].toString()
                         Log.i(TAG, "set BleService.currSetupDomain: ${currSetupDomain}")

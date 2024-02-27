@@ -96,7 +96,8 @@
     <string name="preference_file_key">com.example.freeotpplusbluetotp.preference_file</string>
     <string name="show_onb_key">show_hint_key</string>
     <string name="cant_create_new_profile_text">Can\'t create new profile.</string>
-    <string name="ble_permissions_denied_text">You\'ve denied necessary Bluetooth permissions.</string>
+    <string name="ble_permissions_denied_text">This app needs Bluetooth permissions to connect with your computer!</string>
+    <string name="notify_permissions_denied">This app needs the notification permission to let you confirm requests!</string>
     <string name="stopped_ble_service">Disabled Bluetooth radio (saving power)</string>
     <string name="started_ble_service">Enabled Bluetooth radio</string>
     <string name="title_activity_connect_extension">connectExtensionActivity</string>
@@ -122,6 +123,4 @@
     <string name="totp_req_username">Username:</string>
     <string name="totp_req_confrim">Yes</string>
     <string name="totp_req_deny">No</string>
-
-    <string name="permission_post_notification_denied">You denied the notification permission but the app needs it.</string>
 </resources>

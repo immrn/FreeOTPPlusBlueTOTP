@@ -19,14 +19,15 @@
         android:id="@+id/totpReqTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="80dp"
+        android:layout_marginTop="32dp"
         android:gravity="center"
         android:padding="8dp"
         android:text="@string/totp_req_title"
         android:textSize="30sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        android:hyphenationFrequency="full" />
 
     <TextView
         android:id="@+id/totpReqText"
